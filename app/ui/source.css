@@ -7,8 +7,15 @@
 @source "../vendor/inbox/**/*.tsx";
 @source "../vendor/guide-viewer/**/*.tsx";
 @source "../vendor/review-editor/**/*.tsx";
+/* biome-ignore lint/correctness/noInvalidPositionAtImportRule: Tailwind resolves these imports after its source directives; preserve upstream cascade order. */
 @import "../vendor/ui/theme.css";
+/* biome-ignore lint/correctness/noInvalidPositionAtImportRule: Tailwind resolves these imports after its source directives; preserve upstream cascade order. */
 @import "../vendor/inbox/inbox.css";
 
-html, body, #root { width: 100%; height: 100%; margin: 0; }
-
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}

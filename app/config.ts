@@ -1,12 +1,15 @@
 /** Safe source defaults. The installer generates scoped grants in its private build tree. */
-export type Grant = {
-  id: string;
-  role: "agent" | "reviewer";
-  environments: readonly string[];
-  projects: readonly string[];
+export interface Grant {
   credentialHash: string;
-};
-export type ProjectMapping = { name: string; root: string };
+  environments: readonly string[];
+  id: string;
+  projects: readonly string[];
+  role: "agent" | "reviewer";
+}
+export interface ProjectMapping {
+  name: string;
+  root: string;
+}
 
 // A source checkout authorizes nobody. Test fixtures live only in tests/harness.ts.
 export const grants: Grant[] = [];

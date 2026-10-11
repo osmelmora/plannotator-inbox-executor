@@ -1,27 +1,28 @@
 import {
   defineApp,
   defineProvider,
+  type JsonValue,
   json,
   jsonSchema,
+  type MutationContext,
   mutation,
+  number,
   object,
+  type QueryContext,
   query,
+  type RouterChild,
   router,
   secrets,
   string,
-  number,
-  type JsonValue,
-  type QueryContext,
-  type MutationContext,
-  type RouterChild,
 } from "apps";
-import { toolDefinitions, toolInputSchema } from "./schemas.js";
+import { authenticate, checkMetadata, sessionOf } from "./lib/auth.js";
+import { fail, InboxError, type Input } from "./lib/common.js";
 import { lookupRequest } from "./lib/requests.js";
-import { authenticate, sessionOf, checkMetadata } from "./lib/auth.js";
 import { openStore } from "./lib/storage.js";
 import { invoke } from "./lib/tools.js";
 import { uiRead, uiWrite } from "./lib/ui.js";
-import { fail, InboxError, type Input } from "./lib/common.js";
+import { toolDefinitions, toolInputSchema } from "./schemas.js";
+
 const identity = defineProvider({
   name: "Plannotator Inbox credential",
   auth: {
@@ -41,15 +42,19 @@ async function call(
   ctx: ReadContext | WriteContext,
   tool: string,
   input: unknown,
-  writable: boolean,
+  writable: boolean
 ) {
   try {
     const p = authenticate(ctx.accounts.identity);
-    const run = (value: unknown = input) =>
-      result(invoke(ctx.sql, openStore(ctx.sql), p, tool, value as Input));
-    if (!writable) return run();
+    const run = (payload: unknown = input) =>
+      result(invoke(ctx.sql, openStore(ctx.sql), p, tool, payload as Input));
+    if (!writable) {
+      return run();
+    }
     const w = ctx as WriteContext;
-    if (tool !== "wait_for_reply") return w.sql.transaction(() => run());
+    if (tool !== "wait_for_reply") {
+      return w.sql.transaction(() => run());
+    }
     // Active bounded polling only. No timer or work remains after this Promise ends.
     const args = input as Input;
     const session = sessionOf(ctx.sql, p, args.session_id);
@@ -61,20 +66,24 @@ async function call(
         session.id,
         "wait_for_reply",
         args.request_id,
-        args,
+        args
       );
-      if (receipt.found) return result(receipt.value);
+      if (receipt.found) {
+        return result(receipt.value);
+      }
     }
     const deadline = Date.now() + 1000 * (args.timeout_seconds ?? 1);
-    let value: any;
+    let value: JsonValue;
     do {
       value = w.sql.transaction(() => run({ ...args, request_id: undefined }));
       if (
-        value.structuredContent?.status !== "waiting" ||
+        (value as Input).structuredContent?.status !== "waiting" ||
         Date.now() >= deadline ||
         ctx.signal.aborted
-      )
+      ) {
         break;
+      }
+      // biome-ignore lint/performance/noAwaitInLoops: Active polling waits between reads until the bounded deadline.
       await new Promise<void>((resolve) => {
         const abort = () => {
           clearTimeout(timer);
@@ -85,7 +94,7 @@ async function call(
             ctx.signal.removeEventListener("abort", abort);
             resolve();
           },
-          Math.min(200, deadline - Date.now()),
+          Math.min(200, deadline - Date.now())
         );
         ctx.signal.addEventListener("abort", abort, { once: true });
       });
@@ -105,10 +114,10 @@ for (const t of toolDefinitions) {
   };
   operations[t.name] = readonly
     ? query(options, (ctx: ReadContext, input) =>
-        call(ctx, t.name, input, false),
+        call(ctx, t.name, input, false)
       )
     : mutation(options, (ctx: WriteContext, input) =>
-        call(ctx, t.name, input, true),
+        call(ctx, t.name, input, true)
       );
 }
 const UiEnvelope = object({ status: number(), bodyJson: string() });
@@ -122,7 +131,7 @@ const UiWrite = jsonSchema({
   type: "object",
   properties: {
     path: { type: "string", minLength: 1, maxLength: 2048 },
-    bodyJson: { type: "string", maxLength: 100000 },
+    bodyJson: { type: "string", maxLength: 100_000 },
   },
   required: ["path", "bodyJson"],
   additionalProperties: false,
@@ -155,8 +164,7 @@ const uiErrorStatus: Record<string, number> = {
 };
 function uiFailure(e: unknown) {
   return {
-    status:
-      e instanceof InboxError ? (uiErrorStatus[e.code] ?? 422) : 500,
+    status: e instanceof InboxError ? (uiErrorStatus[e.code] ?? 422) : 500,
     bodyJson: JSON.stringify({
       code: e instanceof InboxError ? e.code : "internal_error",
       error:
@@ -171,19 +179,20 @@ export const inboxQuery = query(
     input: UiRead,
     output: UiEnvelope,
   },
+  // biome-ignore lint/suspicious/useAwait: Executor operations require Promise-returning handlers for synchronous SQL reads.
   async (ctx: ReadContext, input) => {
     try {
       const p = authenticate(ctx.accounts.identity);
       return {
         status: 200,
         bodyJson: JSON.stringify(
-          uiRead(ctx.sql, openStore(ctx.sql), p, (input as Input).path),
+          uiRead(ctx.sql, openStore(ctx.sql), p, (input as Input).path)
         ),
       };
     } catch (e) {
       return uiFailure(e);
     }
-  },
+  }
 );
 export const inboxMutate = mutation(
   {
@@ -192,23 +201,31 @@ export const inboxMutate = mutation(
     input: UiWrite,
     output: UiEnvelope,
   },
+  // biome-ignore lint/suspicious/useAwait: Executor operations require Promise-returning handlers for synchronous SQL transactions.
   async (ctx: WriteContext, input) => {
     try {
       const p = authenticate(ctx.accounts.identity);
       const args = input as Input;
       let body: unknown;
-      try { body = JSON.parse(args.bodyJson); }
-      catch { throw new InboxError("validation_error", "bodyJson must contain valid JSON."); }
+      try {
+        body = JSON.parse(args.bodyJson);
+      } catch {
+        // biome-ignore lint/style/useErrorCause: Keep upstream public validation errors free of raw JSON parser input.
+        throw new InboxError(
+          "validation_error",
+          "bodyJson must contain valid JSON."
+        );
+      }
       return ctx.sql.transaction(() => ({
         status: 200,
         bodyJson: JSON.stringify(
-          uiWrite(ctx.sql, openStore(ctx.sql), p, args.path, body),
+          uiWrite(ctx.sql, openStore(ctx.sql), p, args.path, body)
         ),
       }));
     } catch (e) {
       return uiFailure(e);
     }
-  },
+  }
 );
 export default defineApp(requirements, {
   tools: router({ ...operations, inboxQuery, inboxMutate }),

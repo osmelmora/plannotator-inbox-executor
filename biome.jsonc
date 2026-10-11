@@ -1,0 +1,52 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+  "extends": ["ultracite/biome/core", "ultracite/biome/react"],
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": [
+      "!!app/vendor",
+      "!!app/domain",
+      "!!app/ui/public",
+      "!!app/ui/styles.ts",
+      "!!app/upstream-*.json",
+      "!!docs/ui-*.json",
+      "!!tests/ui-held.upstream.test.ts",
+      "!!examples/review",
+      "!!.runtime",
+      "!!.private"
+    ]
+  },
+  // Object key order can be part of serialized protocol payloads and snapshots.
+  "assist": { "actions": { "source": { "useSortedKeys": "off" } } },
+  "overrides": [
+    {
+      "includes": ["scripts/**", "tests/**"],
+      "linter": {
+        "rules": {
+          // Installation steps and transactional/retry fixtures are ordered.
+          "performance": { "noAwaitInLoops": "off" }
+        }
+      }
+    },
+    {
+      "includes": ["tests/**"],
+      "linter": {
+        "rules": {
+          // Keep expected-error patterns beside their assertions and preserve
+          // the Promise contract of async test doubles without artificial awaits.
+          "performance": { "useTopLevelRegex": "off" },
+          "suspicious": { "useAwait": "off" }
+        }
+      }
+    },
+    {
+      "includes": ["tests/harness.ts"],
+      "linter": {
+        "rules": {
+          // The fixture deliberately adapts raw SQL rows and heterogeneous MCP results.
+          "suspicious": { "noExplicitAny": "off" }
+        }
+      }
+    }
+  ]
+}

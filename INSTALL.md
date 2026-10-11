@@ -6,10 +6,22 @@ If you want another T3 machine to use your existing Inbox, configure its authori
 
 ## 1. Get the source and sign in
 
-Clone or download this repository, then run commands from its root. Install Node.js 24 and npm. Bun 1.4 is needed only if you run development tests.
+Clone or download this repository, then run commands from its root. Install [mise](https://mise.jdx.dev/getting-started.html), inspect the repository configuration, and set up the pinned toolchain and both dependency trees:
 
 ```sh
-npm exec --yes --package=executor@2.0.0-beta.14 -- executor apps login --host https://api.executor.sh
+mise trust
+mise install
+mise exec -- pnpm install --frozen-lockfile --ignore-scripts
+mise exec -- pnpm --dir app install --frozen-lockfile --ignore-scripts
+mise exec -- pnpm verify
+```
+
+[`mise.toml`](mise.toml) pins Node.js 24.21.0, pnpm 12.11.2, and Bun 1.4.2. Root dependencies provide development checks; the app has its own lockfile so the installer can build it independently. Bun runs tests locally and is not required in Executor's runtime. These instructions use `mise exec --` so shell activation is optional; an activated mise shell can omit that prefix.
+
+Sign in with the pinned Executor CLI:
+
+```sh
+mise exec -- pnpm --package=executor@2.0.0-beta.14 dlx executor apps login --host https://api.executor.sh
 ```
 
 Complete Executor's normal device/browser sign-in with an account authorized to create apps, profiles, and accounts in the destination organization. Do not paste credentials into source files or chat. The installer uses this official CLI login and always addresses the organization configured below.
@@ -17,7 +29,7 @@ Complete Executor's normal device/browser sign-in with an account authorized to 
 ## 2. Configure your installation
 
 ```sh
-node scripts/install.mjs init --config inbox.config.json
+mise exec -- node scripts/install.mjs init --config inbox.config.json
 ```
 
 This copies [`config.example.json`](config.example.json) and refuses to overwrite an existing file. Edit `inbox.config.json` before preparing the installation:
@@ -61,7 +73,7 @@ Replace `YOUR_ORGANIZATION_ID` with the destination organization's canonical UUI
 If your organization already contains an app, the official CLI can report its owner using the current approved login:
 
 ```sh
-npm exec --yes --package=executor@2.0.0-beta.14 -- executor apps list --host https://api.executor.sh
+mise exec -- pnpm --package=executor@2.0.0-beta.14 dlx executor apps list --host https://api.executor.sh
 ```
 
 Use the UUID from that app's `owner` value, `organization:<UUID>`, after checking it belongs to the intended organization. For an empty organization, UUID discovery is a manual prerequisite: obtain the `organization` field from Executor's authenticated `/api/context` response for that organization. This is the same context endpoint used by CLI login; its `slug` field and the login message's `@namespace` are different values. The pinned CLI has no `context`, `whoami`, or `status` command and this installer does not automate that initial lookup. If your authenticated dashboard/API access does not expose the ID, ask the organization administrator or Executor support for it before continuing. No access token belongs in this config.
@@ -79,22 +91,22 @@ Map each repository to one logical project key/root. Checkouts on different mach
 ## 3. Build, deploy, and provision profiles
 
 ```sh
-node scripts/install.mjs install --config inbox.config.json
-node scripts/install.mjs status --config inbox.config.json
+mise exec -- node scripts/install.mjs install --config inbox.config.json
+mise exec -- node scripts/install.mjs status --config inbox.config.json
 ```
 
-The installer discovers the target host's exact `apps` framework version, creates fresh per-principal credentials, stages source with only credential hashes/grants, installs/builds dependencies, type-checks server and UI, deploys the app, and provisions its accounts/profiles. [Executor requires an exact host-compatible framework pin](https://executor.sh/docs/author-an-app).
+The installer discovers the target host's exact `apps` framework version, creates fresh per-principal credentials, stages source with only credential hashes/grants, installs the staged app with its frozen pnpm lockfile, builds assets, type-checks server and UI, deploys the app, and provisions its accounts/profiles. [Executor requires an exact host-compatible framework pin](https://executor.sh/docs/author-an-app).
 
 You can run the same stages individually when investigating a failure:
 
 ```sh
-node scripts/install.mjs prepare --config inbox.config.json
-node scripts/install.mjs build --config inbox.config.json
-node scripts/install.mjs deploy --config inbox.config.json
-node scripts/install.mjs profiles --config inbox.config.json
+mise exec -- node scripts/install.mjs prepare --config inbox.config.json
+mise exec -- node scripts/install.mjs build --config inbox.config.json
+mise exec -- node scripts/install.mjs deploy --config inbox.config.json
+mise exec -- node scripts/install.mjs profiles --config inbox.config.json
 ```
 
-Stages can resume from this installation's saved state. If the host framework differs from the source pin, preparation stops. Inspect compatibility first; `prepare` and `install` accept `--allow-framework-change` to explicitly try that version and update the staging lockfile. This opt-in does not mark the new version as verified. Do not bypass a build failure. Review the reported host, organization, and app before continuing if anything differs from your intended target.
+Stages can resume from this installation's saved state. If the host framework differs from the source pin, preparation stops. Inspect compatibility first; `prepare` and `install` accept `--allow-framework-change` to explicitly try that version and update the staging pnpm lockfile. This opt-in does not mark the new version as verified. Do not bypass a build failure. Review the reported host, organization, and app before continuing if anything differs from your intended target.
 
 A fresh installation refuses to overwrite an existing app with the same slug. `deploy --adopt-app <app-id>` is an explicit operator escape hatch for intentional adoption, not the normal install path. Do not use it on an Inbox with existing identities/data without planning the corresponding credential and grant migration.
 

@@ -13,11 +13,15 @@ This repository hosts Plannotator's Inbox UI and domain inside Executor. Read
 - Keep upstream imports and licenses traceable. For changes under `app/vendor` or
   `app/domain`, retain modification notices and update `UPSTREAM.json` using the pinned
   upstream commit; `scripts/refresh-ui-provenance.mjs --help` describes that workflow.
-- Use `npm ci --prefix app`, then `npm run verify` for the public checkout. Installer
-  tests use isolated fixtures; ordinary verification never touches a live deployment.
+- Use the exact tools in `mise.toml`. For a fresh checkout, follow the two frozen
+  pnpm installs in `CONTRIBUTING.md`, then run `mise exec -- pnpm verify`. An activated
+  mise shell may omit the prefix. Ordinary verification uses isolated fixtures.
+- Use `pnpm lint` and `pnpm format` for maintained source. Follow `biome.jsonc`
+  exclusions: preserve vendored/upstream style and regenerate assets/provenance
+  through their build tools rather than applying repository-wide formatting.
 - Public docs/examples use synthetic identifiers. `.runtime`, `.private`, account
   tokens, OAuth state, operator configuration, and deployment receipts stay outside Git.
 
-When preparing publication, run `npm run check` on the staged source and inspect the
+When preparing publication, run `mise exec -- pnpm check` on the staged source and inspect the
 Git file list. The automated check complements review; it does not prove arbitrary
 content is safe to disclose.

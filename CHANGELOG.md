@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Pinned Node.js 24.21.0, pnpm 12.11.2, and Bun 1.4.2 with mise; moved installs and deployment tooling to separate frozen pnpm lockfiles for root tooling and the app.
+- Added Ultracite 8.0.0 and Biome 2.5.15 for maintained source, keeping vendored and generated material outside routine formatting. CI installs the same toolchain and runs the complete verification command.
+
 - Extracted the native Inbox into the standalone `plannotator-inbox-executor` repository.
 - Retained the actual Plannotator Inbox UI and domain with Executor-hosted assets, authenticated operations, and durable SQLite.
 - Added explicit environment/thread identity, project grants, immutable file uploads, deliberate thread joins, retry receipts, and resumable reply cursors.

@@ -8,19 +8,26 @@ This is an independent port of [Plannotator Inbox](https://plannotator.ai/docs/r
 
 ## Start here
 
-You need an Executor organization where you can create apps, accounts, profiles, and scoped MCP connections, plus Node.js 24 and npm on your setup machine. Bun is needed only for development tests.
+You need an Executor organization where you can create apps, accounts, profiles, and scoped MCP connections. Install [mise](https://mise.jdx.dev/getting-started.html) on your setup machine; [`mise.toml`](mise.toml) pins Node.js 24.21.0, pnpm 12.11.2, and Bun 1.4.2. Bun runs the local tests; it is not a deployed app dependency.
 
 ```sh
 # From a downloaded or cloned copy of this repository:
-node scripts/install.mjs init --config inbox.config.json
+mise trust
+mise install
+mise exec -- pnpm install --frozen-lockfile --ignore-scripts
+mise exec -- pnpm --dir app install --frozen-lockfile --ignore-scripts
+mise exec -- pnpm verify
+mise exec -- node scripts/install.mjs init --config inbox.config.json
 ```
 
 Edit the generated configuration with your Executor organization's canonical UUID, repository mappings, and agent environments. [Installation instructions](INSTALL.md) explain how to identify the organization. Sign in with the official Executor CLI, then run:
 
 ```sh
-npm exec --yes --package=executor@2.0.0-beta.14 -- executor apps login --host https://api.executor.sh
-node scripts/install.mjs install --config inbox.config.json
+mise exec -- pnpm --package=executor@2.0.0-beta.14 dlx executor apps login --host https://api.executor.sh
+mise exec -- node scripts/install.mjs install --config inbox.config.json
 ```
+
+The two dependency installs are intentional: root tooling and the deployable app have separate lockfiles. If mise is activated in your shell, you may omit `mise exec --`.
 
 Follow [INSTALL.md](INSTALL.md) for the complete procedure, including how to open the reviewer UI and create each agent's scoped MCP connection. Installation state and credentials stay in the ignored `.runtime/` directory. They are not part of a source distribution.
 

@@ -4,14 +4,32 @@ The goal is to preserve Plannotator Inbox's behavior while making its identity, 
 
 ## Local development
 
-Use Node.js 24, npm, and Bun 1.4. Install the locked app dependencies, then run the repository checks:
+Install [mise](https://mise.jdx.dev/getting-started.html), inspect [`mise.toml`](mise.toml), then run from the repository root:
 
 ```sh
-npm ci --prefix app --ignore-scripts
-npm run verify
+mise trust
+mise install
+mise exec -- pnpm install --frozen-lockfile --ignore-scripts
+mise exec -- pnpm --dir app install --frozen-lockfile --ignore-scripts
+mise exec -- pnpm verify
 ```
 
-Individual commands are available for `npm test`, `npm run typecheck`, `npm run build`, and `npm run check`. Tests use synthetic local data. They must not depend on an operator's `.runtime/`, credentials, private installation, or signed-in browser.
+The pinned toolchain is Node.js 24.21.0, pnpm 12.11.2, and Bun 1.4.2. Root tooling and the deployable app deliberately have separate dependency manifests and lockfiles. Install both; the app's installation also works independently when staged for deployment. An activated mise shell can omit `mise exec --`.
+
+`pnpm verify` runs lint, server/UI type checks, isolated tests, the UI build, and publication/provenance/browser/documentation checks. Tests use synthetic local data and need no operator credentials or signed-in browser. CI runs the same command after installing the toolchain with [`jdx/mise-action`](https://github.com/jdx/mise-action/tree/v3).
+
+## Lint and formatting
+
+Ultracite 8.0.0 with Biome 2.5.15 checks maintained adapter, UI integration, installer, test, and configuration code. [`biome.jsonc`](biome.jsonc) defines the exact scope. Run:
+
+```sh
+mise exec -- pnpm lint
+mise exec -- pnpm format
+```
+
+`lint` checks; `format` applies fixes. Review the resulting changes before committing. Vendored domain/UI source, the retained upstream test, generated UI assets/styles, lockfiles, provenance/build receipts, and private state are excluded from this formatting pass. Keep their upstream style and refresh generated files through the relevant build/provenance command instead. Exclusion from formatting does not remove type, behavior, provenance, or publication checks.
+
+Use the repository's pinned pnpm for dependency changes and commit the affected lockfile. Changes to deployable dependencies belong in `app/`; root dependencies are development tooling. Preserve the app's security overrides when regenerating its lockfile.
 
 Do not deploy just to run unit tests. Use a separate installation configuration for integration work and document which target you changed. See [INSTALL.md](INSTALL.md) and [the verification boundaries](docs/verification.md).
 
@@ -45,7 +63,7 @@ These are possible improvements, not promises of a scheduled release.
 
 ## Publishing the first source release
 
-Run `npm run verify` from a clean checkout and inspect `git ls-files` before
+Run `mise exec -- pnpm verify` from a clean checkout and inspect `git ls-files` before
 publishing. The source scanner checks the working tree and Git index; it is not
 a history audit. Keep operator state out of every commit, including old commits.
 

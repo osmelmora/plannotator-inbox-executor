@@ -1,1 +1,0 @@
-import{c as e,e as i}from"./chunk-JXAZDYEF.js";import"./chunk-5TBO732O.js";function p(o,a,m){let{onComplete:n,...r}=m,t=new e([i(o,a,r)]);return typeof n=="function"&&t.finished.then(n),t}export{p as animate};

@@ -4,9 +4,6 @@
   "thread": "Example token guard",
   "body": "Review the immutable token guard.\n\n:::question\nHow should empty tokens be handled?\n\n- [ ] Reject empty tokens\n- [ ] Allow empty tokens\n\nRecommended: Reject empty tokens\n:::",
   "snapshot_id": "REPLACE_SNAPSHOT_ID",
-  "attachments": [
-    "docs/review.md",
-    "src/auth.ts"
-  ],
+  "attachments": ["docs/review.md", "src/auth.ts"],
   "idempotency_key": "example-token-guard-message-v1"
 }

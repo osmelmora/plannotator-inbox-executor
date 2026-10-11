@@ -9,21 +9,9 @@
     "esModuleInterop": true,
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
-    "types": [
-      "react",
-      "react-dom"
-    ],
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "types": ["react", "react-dom"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "noEmit": true
   },
-  "files": [
-    "main.tsx",
-    "host.ts",
-    "shiki-small.ts",
-    "assets.d.ts"
-  ]
+  "files": ["main.tsx", "host.ts", "shiki-small.ts", "assets.d.ts"]
 }

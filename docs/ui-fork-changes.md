@@ -28,18 +28,18 @@ This port uses the real Inbox application, list, sidebar, thread, question cards
 
 ## Build and checks
 
-From the repository root, after installing the exact `app/package.json` dependencies:
+From the repository root, after the two dependency installs in [CONTRIBUTING.md](../CONTRIBUTING.md):
 
 ```sh
-node scripts/build-css.mjs
-node scripts/build-ui.mjs
-app/node_modules/.bin/tsc -p app/ui/tsconfig.json
-node scripts/check-browser.mjs
-node scripts/check-diff-renderer.mjs
-bun test tests/ui-attachments.test.ts tests/ui-held.upstream.test.ts
+mise exec -- pnpm typecheck
+mise exec -- pnpm build
+mise exec -- pnpm check
+mise exec -- bun test tests/ui-attachments.test.ts tests/ui-held.upstream.test.ts
 ```
 
-The strict browser TypeScript check passes. `docs/ui-build-receipt.json` records the small host module check; `docs/ui-static-build-receipt.json` records the minified app asset hashes and sizes. `docs/ui-dependency-inventory.json` and `app/ui/public/THIRD-PARTY-LICENSES.txt` retain dependency versions and licenses. Exact Shiki/esbuild versions are pinned and `app/package-lock.json` locks the local build inputs. The retained source and build scripts are needed only when building, not while using the deployed app. Two retained upstream list tests and three attachment/feedback tests passed with 19 assertions. They guard held-list ordering and delivery state, literal code versus Markdown interpretation, the synchronous highlighting bound, and sent-version annotation feedback.
+The ordinary Ultracite/Biome formatting pass excludes retained upstream source and generated UI assets. Update fork provenance after intentional source adaptations; rebuild rather than manually formatting compiled output.
+
+The strict browser TypeScript check passes. `docs/ui-build-receipt.json` records the small host module check; `docs/ui-static-build-receipt.json` records the minified app asset hashes and sizes. `docs/ui-dependency-inventory.json` and `app/ui/public/THIRD-PARTY-LICENSES.txt` retain dependency versions and licenses. Exact Shiki/esbuild versions are pinned and `app/pnpm-lock.yaml` locks the local build inputs independently of root development tooling. The retained source and build scripts are needed only when building, not while using the deployed app. Two retained upstream list tests and three attachment/feedback tests passed with 19 assertions. They guard held-list ordering and delivery state, literal code versus Markdown interpretation, the synchronous highlighting bound, and sent-version annotation feedback.
 
 `scripts/vendor-upstream.mjs` records the initial import method and deliberately refuses to overwrite the existing adapted fork. Deployment uses the included fork source. Re-vendoring requires reviewing the adaptations above; do not run the initial-import script over an existing fork.
 

@@ -1,10 +1,10 @@
 import { Database } from "bun:sqlite";
 import { readFileSync } from "node:fs";
+import { grants, projects } from "../app/config.ts";
+import { hash } from "../app/lib/common.ts";
 import { openStore } from "../app/lib/storage.ts";
 import { invoke } from "../app/lib/tools.ts";
 import { uiRead, uiWrite } from "../app/lib/ui.ts";
-import { grants, projects } from "../app/config.ts";
-import { hash } from "../app/lib/common.ts";
 export const A = {
   id: "native-a",
   role: "agent",
@@ -31,10 +31,16 @@ export const QUESTION =
 // In-memory fixtures only: public app configuration remains unconfigured and
 // denies every caller until an operator builds an installation-specific copy.
 for (const { accountId, ...principal } of [A, B, R]) {
-  grants.push({ ...principal, credentialHash: hash(`fixture-only-${principal.id}`) });
+  grants.push({
+    ...principal,
+    credentialHash: hash(`fixture-only-${principal.id}`),
+  });
 }
 Object.assign(projects, {
-  "shared-native": { name: "Shared test project", root: "executor-project://shared-native" },
+  "shared-native": {
+    name: "Shared test project",
+    root: "executor-project://shared-native",
+  },
   "a-only": { name: "Private test project", root: "executor-project://a-only" },
 });
 export function harness(filename = ":memory:") {
@@ -42,10 +48,10 @@ export function harness(filename = ":memory:") {
   db.exec(
     readFileSync(
       new URL("../app/migrations/0001_native.sql", import.meta.url),
-      "utf8",
+      "utf8"
     )
       .replaceAll("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ")
-      .replaceAll("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS "),
+      .replaceAll("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ")
   );
   const sql: any = {
     exec(query: string, ...bindings: any[]) {
@@ -53,7 +59,9 @@ export function harness(filename = ":memory:") {
       return {
         toArray: () => rows,
         one: () => {
-          if (rows.length !== 1) throw Error("Expected one row");
+          if (rows.length !== 1) {
+            throw new Error("Expected one row");
+          }
           return rows[0];
         },
         rowsWritten: db.query("SELECT changes() n").get().n,
@@ -82,7 +90,7 @@ export function setup(
   h: ReturnType<typeof harness>,
   p: any = A,
   thread = "t3-thread-a",
-  project = "shared-native",
+  project = "shared-native"
 ) {
   return h.call(p, "open_session", {
     environment_id: p.environments[0],
@@ -96,7 +104,7 @@ export const send = (
   h: ReturnType<typeof harness>,
   p: any,
   s: string,
-  extra: any = {},
+  extra: any = {}
 ) =>
   h.call(p, "send_message", {
     session_id: s,

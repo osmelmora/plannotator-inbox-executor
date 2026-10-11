@@ -18,23 +18,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: npm
-          cache-dependency-path: app/package-lock.json
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: '1.4.2'
+      - name: Install pinned toolchain
+        uses: jdx/mise-action@v3
+      - name: Install locked development tooling
+        run: mise exec -- pnpm install --frozen-lockfile --ignore-scripts
       - name: Install locked app dependencies
-        run: npm ci --prefix app --ignore-scripts
-      - name: Check publication source
-        run: npm run check
-      - name: Run isolated tests
-        run: npm test
-      - name: Typecheck server and UI
-        run: npm run typecheck
-      - name: Build hosted UI
-        run: npm run build
-      - name: Recheck generated source
-        run: npm run check
+        run: mise exec -- pnpm --dir app install --frozen-lockfile --ignore-scripts
+      - name: Lint, test, typecheck, build, and check publication
+        run: mise exec -- pnpm verify

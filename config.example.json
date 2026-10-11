@@ -8,10 +8,24 @@
     "slug": "plannotator-inbox-executor"
   },
   "projects": [
-    { "key": "my-project", "name": "My project", "root": "executor-project://my-project" }
+    {
+      "key": "my-project",
+      "name": "My project",
+      "root": "executor-project://my-project"
+    }
   ],
   "principals": [
-    { "id": "machine-a", "role": "agent", "environments": ["t3-machine-a"], "projects": ["my-project"] },
-    { "id": "reviewer", "role": "reviewer", "environments": [], "projects": ["my-project"] }
+    {
+      "id": "machine-a",
+      "role": "agent",
+      "environments": ["t3-machine-a"],
+      "projects": ["my-project"]
+    },
+    {
+      "id": "reviewer",
+      "role": "reviewer",
+      "environments": [],
+      "projects": ["my-project"]
+    }
   ]
 }

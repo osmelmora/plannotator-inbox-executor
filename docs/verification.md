@@ -19,13 +19,25 @@ The native Inbox was exercised on 2026-10-11 with Node 24.21.0, Bun 1.4.2, and o
 
 The Cloud path used actual agent MCP calls and the real UI. Administrator APIs provisioned accounts and profiles; they did not substitute for the final agent submission or UI reply. Original local Plannotator/companion workflows were left separate and continued working during that verification.
 
-## Source-release preparation
+## Source-release preparation before the toolchain migration
 
 The standalone repository has a fresh, configurable installer and synthetic examples. Its checks must be interpreted separately from the earlier Cloud deployment: **a clean installation into another Cloud organization has not yet been tested end to end**. The original deployment has not been replaced merely to rename or package this repository.
 
 The source-release suite passed 73 tests across eight files, including 17 isolated installer tests and seven publication-scanner tests. Server/UI type checks, CSS compilation, hosted bundle generation, fork provenance, browser boundary checks, three direct diff-renderer cases, and documentation links also passed. The locked dependency audit reported no vulnerabilities at preparation time. A checkout exported exclusively from the Git index also passed the complete verification command without private runtime state or preinstalled dependencies.
 
 An isolated build of the full source also passed locked dependency installation, server/UI type checks, CSS compilation, and bundle generation against the pinned `apps@0.0.1-beta.81`; remote mutations were blocked during that check. The three synthetic upload/message/guide JSON examples passed their actual exported tool input schemas. Installer tests use isolated state and mocked deployment boundaries; they do not establish a second real deployment. Run the repository's documented development checks before publishing or changing supported framework versions. See [CONTRIBUTING.md](../CONTRIBUTING.md) and [INSTALL.md](../INSTALL.md).
+
+## Current development toolchain
+
+The source now uses Node.js 24.21.0, pnpm 12.11.2, and Bun 1.4.2 from [`mise.toml`](../mise.toml), with separate frozen root/app pnpm lockfiles. Ultracite 8.0.0 and Biome 2.5.15 check maintained source, excluding upstream and generated files. The setup and verification commands are in [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+After migration, `pnpm verify` passed lint, both type checks, all 74 tests (including 18 installer tests), CSS and hosted bundle generation, provenance for 437 vendor and eight domain files, browser-boundary checks, three direct diff-renderer cases, and documentation links. An actual isolated installer prepare/build also passed with remote mutations blocked. The app lock migration preserved all 325 distinct dependency versions; the generated 74-package browser dependency/license inventory was unchanged. Every bundled dependency has a retained license text.
+
+A checkout exported exclusively from the Git index passed both frozen pnpm installs and the complete verification command without private state or preinstalled dependencies. This caught and removed two tests' reliance on npm's hoisted dependency layout; their Effect test runtime is now an explicit root development dependency.
+
+The app's pnpm audit reported zero vulnerabilities on 2026-10-11. The separate root development toolchain reports one high-severity advisory, [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), in Ultracite's transitive `braces@3.0.3` dependency. No patched version is published at this check. It concerns deeply nested glob patterns in local lint/workspace configuration; Ultracite and this dependency are absent from the deployable app. The finding remains visible rather than suppressed.
+
+This tooling migration is local source work; it does not update the existing Cloud deployment or establish a fresh Cloud round trip. No browser automation was used for these checks.
 
 ## Still unverified or unavailable
 

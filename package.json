@@ -2,16 +2,26 @@
   "name": "plannotator-inbox-executor",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "description": "A shared Plannotator Inbox hosted in Executor for agents running on separate machines.",
   "license": "Apache-2.0",
-  "engines": { "node": ">=24" },
+  "type": "module",
   "scripts": {
-    "test": "bun test tests",
-    "typecheck": "npm run typecheck --prefix app && app/node_modules/.bin/tsc --noEmit -p app/ui/tsconfig.json",
     "build": "node scripts/build-css.mjs && node scripts/build-ui.mjs",
     "check": "node scripts/check.mjs",
-    "verify": "npm run typecheck && npm test && npm run build && npm run check",
-    "setup": "node scripts/install.mjs"
+    "format": "ultracite fix",
+    "lint": "ultracite check",
+    "setup": "node scripts/install.mjs",
+    "test": "bun test tests",
+    "typecheck": "pnpm --dir app run typecheck && pnpm --dir app exec tsc --noEmit -p ui/tsconfig.json",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm check"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "effect": "4.0.1",
+    "ultracite": "8.0.0"
+  },
+  "packageManager": "pnpm@12.11.2",
+  "engines": {
+    "node": ">=24"
   }
 }
