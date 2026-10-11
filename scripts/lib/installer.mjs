@@ -293,7 +293,12 @@ export function createInstaller({
     // its response was lost, a retry requires explicit adoption of the observed
     // app, so the installer never creates a second app silently.
     const sourceFile = path.join(directory, "source.json");
-    await writeJson(sourceFile, files);
+    // Executor accepts app source without package-manager lockfiles. Keep the
+    // local lock in the build digest above, but omit it from remote uploads.
+    await writeJson(
+      sourceFile,
+      files.filter((file) => file.path !== "pnpm-lock.yaml")
+    );
     if (!app) {
       const pending = await readJson(receipt("creation-pending"), true);
       if (pending) {

@@ -23,11 +23,15 @@ import { invoke } from "./lib/tools.js";
 import { uiRead, uiWrite } from "./lib/ui.js";
 import { toolDefinitions, toolInputSchema } from "./schemas.js";
 
+// Executor fingerprints this declaration; keep labels and schema stable so
+// existing accounts remain bound when the app's public branding changes.
 const identity = defineProvider({
-  name: "Plannotator Inbox credential",
+  name: "Native Inbox credential",
   auth: {
     credential: secrets({
-      label: "Scoped Plannotator Inbox credential",
+      label: "Scoped native Inbox credential",
+      // beta.81 converts UTF-16 length to JSON Schema code points: 64 emits the
+      // original minLength:32 declaration. The host-serialization test locks it.
       fields: object({ token: string({ minLength: 64 }) }),
     }),
   },

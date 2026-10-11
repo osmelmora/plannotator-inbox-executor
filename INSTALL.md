@@ -97,6 +97,8 @@ mise exec -- node scripts/install.mjs status --config inbox.config.json
 
 The installer discovers the target host's exact `apps` framework version, creates fresh per-principal credentials, stages source with only credential hashes/grants, installs the staged app with its frozen pnpm lockfile, builds assets, type-checks server and UI, deploys the app, and provisions its accounts/profiles. [Executor requires an exact host-compatible framework pin](https://executor.sh/docs/author-an-app).
 
+The pnpm lockfile remains in local staging and the build integrity check; it is excluded from the app source uploaded to Executor.
+
 You can run the same stages individually when investigating a failure:
 
 ```sh

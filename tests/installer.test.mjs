@@ -79,11 +79,19 @@ async function fixture(t, configOverrides = {}, appId = "app_fixture") {
     commands = [],
     apps = [],
     profiles = [],
-    connections = [];
+    connections = [],
+    uploads = [];
   let version = "0.0.1-beta.81",
     failCreate = false;
   const cli = async (args) => {
     calls.push(args);
+    if (args[0] === "create" || args[0] === "commit") {
+      const sourceFile = args[args.indexOf("--files") + 1];
+      uploads.push({
+        operation: args[0],
+        files: JSON.parse(await readFile(sourceFile, "utf8")),
+      });
+    }
     switch (args[0]) {
       case "framework":
         return { version };
@@ -211,6 +219,7 @@ async function fixture(t, configOverrides = {}, appId = "app_fixture") {
     apps,
     profiles,
     connections,
+    uploads,
     installer,
     cli,
     runner,
@@ -472,6 +481,35 @@ test("pnpm lock inspection rejects a mismatched framework and explicit updates p
   assert(stagedFiles.some((file) => file.path === "pnpm-lock.yaml"));
   assert(stagedFiles.some((file) => file.path === "pnpm-workspace.yaml"));
   assert(!stagedFiles.some((file) => file.path === "package-lock.json"));
+});
+
+test("deployment omits only the pnpm lock from uploads while retaining its build integrity check", async (t) => {
+  const f = await fixture(t);
+  await f.installer.prepare();
+  await f.installer.build();
+  const appDirectory = path.join(f.directory, "staging/app");
+  const lockFile = path.join(appDirectory, "pnpm-lock.yaml");
+  const originalLock = await readFile(lockFile, "utf8");
+  const stagedFiles = await collectSource(appDirectory);
+
+  await writeFile(lockFile, `${originalLock}# modified after build\n`);
+  await assert.rejects(f.installer.deploy(), /source changed/);
+  assert.equal(f.uploads.length, 0);
+
+  await writeFile(lockFile, originalLock);
+  await f.installer.deploy();
+  assert.deepEqual(
+    f.uploads.map((upload) => upload.operation),
+    ["create", "commit"]
+  );
+  const expectedSource = stagedFiles.filter(
+    (file) => file.path !== "pnpm-lock.yaml"
+  );
+  for (const upload of f.uploads) {
+    assert.deepEqual(upload.files, expectedSource);
+    assert(upload.files.some((file) => file.path === "pnpm-workspace.yaml"));
+  }
+  assert.equal(await readFile(lockFile, "utf8"), originalLock);
 });
 
 test("locked build is required; altered source and implicit existing-app adoption are refused", async (t) => {

@@ -34,6 +34,10 @@ The additional operations are `open_session`, `upload_snapshot`, `upload_snapsho
 
 Read-only code/diff behavior is inherited from the pinned **upstream Inbox**. It is not an Executor Cloud restriction. Inline code-review annotation features from other Plannotator surfaces are outside this port's scope.
 
+## Account provider identity
+
+The account provider retains the original `Native Inbox credential` name, `Scoped native Inbox credential` label, and credential schema. Executor fingerprints this entire declaration, so changing these labels would disconnect existing account bindings. The app's public branding can change independently. Installer-generated credentials and application authorization remain unchanged; this compatibility declaration does not grant access by itself.
+
 ## Limits
 
 | Resource | Enforced limit |

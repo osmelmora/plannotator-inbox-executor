@@ -1,6 +1,6 @@
 {
   "upstreamCommit": "177c34099258fa380c6b90c6f3e9411c13f6f463",
-  "checkedAt": "2026-10-11T13:57:21.832Z",
+  "checkedAt": "2026-10-11T15:13:57.477Z",
   "compiler": "esbuild browser ES modules, automatic JSX, no custom aliases",
   "sourceInputs": 21,
   "outputFiles": 1,
