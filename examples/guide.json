@@ -1,0 +1,38 @@
+{
+  "session_id": "REPLACE_SESSION_ID",
+  "reply_to": "REPLACE_MESSAGE_ID",
+  "idempotency_key": "example-token-guard-guide-v1",
+  "snapshot_id": "REPLACE_SNAPSHOT_ID",
+  "patch_path": "changes.patch",
+  "body": "The exact patch captured with the submitted files.",
+  "guide": {
+    "title": "Reject empty tokens",
+    "intent": "Add one guard before authentication.",
+    "sections": [
+      {
+        "title": "Validate at the boundary",
+        "overview": "Reject blank tokens before returning them.",
+        "diffs": [
+          {
+            "file": "src/auth.ts",
+            "summary": "Adds the empty-token check."
+          }
+        ]
+      }
+    ],
+    "source": {
+      "kind": "local",
+      "repo": "example/my-project",
+      "branch": "feature/token-guard",
+      "headSha": "fixture-after"
+    },
+    "review": {
+      "gitRef": "working-tree",
+      "base": "fixture-before"
+    },
+    "generator": {
+      "engine": "example-agent",
+      "model": "example-model"
+    }
+  }
+}

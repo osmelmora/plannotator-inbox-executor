@@ -1,0 +1,37 @@
+/** Modified for plannotator-inbox-executor. Original Plannotator attribution and
+ * license are retained; adaptation details: docs/ui-fork-changes.md and UPSTREAM.json. */
+import { defineShortcutScope } from "../core.js";
+import { createShortcutScopeHook } from "../runtime.js";
+
+export const reviewFileTreeShortcuts = defineShortcutScope({
+  id: 'review-file-tree',
+  title: 'File Navigation',
+  shortcuts: {
+    nextFile: {
+      description: 'Next file',
+      bindings: ['J', 'ArrowDown'],
+      section: 'File Navigation',
+      displayOrder: 10,
+    },
+    prevFile: {
+      description: 'Previous file',
+      bindings: ['K', 'ArrowUp'],
+      section: 'File Navigation',
+      displayOrder: 20,
+    },
+    firstFile: {
+      description: 'First file',
+      bindings: ['Home'],
+      section: 'File Navigation',
+      displayOrder: 30,
+    },
+    lastFile: {
+      description: 'Last file',
+      bindings: ['End'],
+      section: 'File Navigation',
+      displayOrder: 40,
+    },
+  },
+});
+
+export const useReviewFileTreeShortcuts = createShortcutScopeHook(reviewFileTreeShortcuts);

@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Plannotator Inbox · Executor</title>
+  </head>
+  <body>
+    <div id="deployment-changed" hidden role="status" style="position:fixed;z-index:99999;top:8px;left:50%;transform:translateX(-50%);background:#fff3cd;color:#332701;padding:12px;border:1px solid #b79b41;border-radius:8px">A new deployment is available. Copy any unsent draft, then <button onclick="location.reload()">Reload Inbox</button>.</div>
+    <div id="location-registration-failed" hidden role="status" style="position:fixed;z-index:99998;bottom:8px;left:50%;transform:translateX(-50%);background:#fff3cd;color:#332701;padding:12px;border:1px solid #b79b41;border-radius:8px">Agent links could not be registered. Reload Inbox to retry; replies and annotations remain available.</div>
+    <div id="root"></div>
+    <script type="module" src="./host.ts"></script>
+  </body>
+</html>

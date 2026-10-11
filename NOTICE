@@ -1,0 +1,23 @@
+Plannotator Inbox for Executor
+
+The Executor integration and its modifications are distributed under the
+Apache License, Version 2.0. See LICENSE. Third-party material retains its
+own copyright and license notices.
+
+This project includes adapted source and assets from Plannotator:
+  https://github.com/backnotprop/plannotator
+  revision 177c34099258fa380c6b90c6f3e9411c13f6f463 (version 0.28.11)
+  Copyright (c) 2025 backnotprop
+
+Plannotator's retained root licenses are MIT OR Apache-2.0. Its retained
+packages/ui and packages/core licenses are Apache-2.0. Original license
+texts remain in app/vendor and app/domain; source provenance and hashes
+are recorded in their UPSTREAM.json files. Adaptations are described in
+docs/ui-fork-changes.md and app/domain/README.md. Modified source files
+carry a modification notice.
+
+Bundled dependency and font notices are retained in
+app/ui/public/THIRD-PARTY-LICENSES.txt. See THIRD_PARTY.md for the inventory.
+
+This is an independent integration. The project name describes the
+technologies it connects and does not imply endorsement by either upstream.

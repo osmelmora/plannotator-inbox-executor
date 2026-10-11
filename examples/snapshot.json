@@ -1,0 +1,32 @@
+{
+  "session_id": "REPLACE_SESSION_ID",
+  "files": [
+    {
+      "path": "docs/review.md",
+      "encoding": "utf8",
+      "content": "# Token guard review\n\nKeep empty tokens out of authentication.\n\nUse the shared error type.\n"
+    },
+    {
+      "path": "src/auth.ts",
+      "encoding": "utf8",
+      "content": "export function authenticate(token: string) {\n  if (!token.trim()) throw new Error(\"Empty token\");\n  return token;\n}\n"
+    },
+    {
+      "path": "changes.patch",
+      "encoding": "utf8",
+      "content": "diff --git a/src/auth.ts b/src/auth.ts\n--- a/src/auth.ts\n+++ b/src/auth.ts\n@@ -1,3 +1,4 @@\n export function authenticate(token: string) {\n+  if (!token.trim()) throw new Error(\"Empty token\");\n   return token;\n }\n"
+    },
+    {
+      "path": "images/pixel.bin",
+      "encoding": "base64",
+      "content": "AAEC+v8="
+    }
+  ],
+  "revision": {
+    "repository": "example/my-project",
+    "branch": "feature/token-guard",
+    "base": "fixture-before",
+    "head": "fixture-after",
+    "dirty": true
+  }
+}

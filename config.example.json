@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "installation": "my-inbox",
+  "host": "https://api.executor.sh",
+  "organization": "YOUR_ORGANIZATION_ID",
+  "app": {
+    "name": "Plannotator Inbox Executor",
+    "slug": "plannotator-inbox-executor"
+  },
+  "projects": [
+    { "key": "my-project", "name": "My project", "root": "executor-project://my-project" }
+  ],
+  "principals": [
+    { "id": "machine-a", "role": "agent", "environments": ["t3-machine-a"], "projects": ["my-project"] },
+    { "id": "reviewer", "role": "reviewer", "environments": [], "projects": ["my-project"] }
+  ]
+}

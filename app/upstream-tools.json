@@ -1,0 +1,382 @@
+{
+  "source": {
+    "version": "0.28.11-executor.177c340",
+    "commit": "177c34099258fa380c6b90c6f3e9411c13f6f463",
+    "protocolVersion": "2025-06-18",
+    "capturedAt": "2026-10-10T23:03:34.267Z"
+  },
+  "tools": [
+    {
+      "name": "send_message",
+      "title": "Send a message to the person",
+      "description": "Message the person in the Plannotator Inbox (markdown), in your session's open thread (see `thread`). The answer comes back via wait_for_reply.\n\n## Asking the reviewer questions\n\nWhen a decision needs the reviewer (a trade-off you cannot settle from the code or the conversation), write it as a question block. The reviewer answers in place, and the answers come back to you in an \"Answers to your questions\" section at the top of their feedback, with the questions they left open listed under \"Unanswered\".\n\n```markdown\n:::question\nWhere should losing conflict versions be kept?\n\nLast-write-wins silently drops the loser unless we keep it somewhere.\n\n- [ ] Local only, purged after 30 days — cheap, no server change\n- [ ] Server-side per user — survives reinstall, needs a retention policy\n- [ ] Nowhere — accept silent loss for v1\n\nRecommended: Local only, purged after 30 days\n:::\n```\n\n- `:::question` picks one choice, `:::question-multi` picks any number, `:::question-text` asks for free text (a block with no choices is free text too).\n- The first line is the question. Other prose lines are context. Most reviewers answer faster with a sentence or two of it: what the choice affects and what you already know. Context can include an image (`![alt](path)`), which helps when the question is about something visual, such as a screen.\n- Choices are task-list items: `- [ ] label`, optionally `- [ ] label — why`. The reviewer can always answer \"Other\", add a note, or skip.\n- `Recommended: <label>` marks your recommendation. Text that matches no choice is offered as a suggested answer.\n- `- [x]` means the choice is already settled. Use it when you resubmit: keep an answered question with the chosen choice checked, or remove the block and write the decision into the prose.\n- Leave blank lines between the parts so the block also reads well on GitHub.\n- Ask only what you cannot decide alone, and keep a round short (about 8 questions at most). Do not ask rhetorical questions or questions the codebase answers.\n- Each answer comes back under its question (`### Q2. <question> (line N)`) as `Answer: <choice>`, marked `(your recommendation)` when the reviewer took yours, or as `Other: …`, free text in a quote, or `Skipped`, plus any `Note:`. A question you marked `- [x]` is settled and only comes back if the reviewer changed it or added a note.\n",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The message, markdown. Question blocks render as answerable cards."
+          },
+          "project_path": {
+            "description": "Absolute path of the repository or folder you work in; the thread lands in that project's row. The `plannotator inbox mcp` shim fills it from its working folder.",
+            "type": "string"
+          },
+          "subject": {
+            "description": "A short subject when this starts a thread (ignored when it joins one). Default: the first question's prompt, else the first line.",
+            "type": "string"
+          },
+          "thread": {
+            "description": "A short thread name (1-120 characters, one line). Without it, your messages join your session's open thread in this project (a new one the first time, or once the person resolved it; a thread keeps its first subject). With it, the same name in this project is the same open thread, across sessions (compared without case, spacing or invisible characters). Use it to split separate work, or to join another session's thread. Ignored with reply_to.",
+            "type": "string"
+          },
+          "reply_to": {
+            "description": "A message id: post this as a reply in that message's thread.",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "description": "Any unique string; sending again with the same key answers the first message instead of posting twice.",
+            "type": "string"
+          },
+          "agent_session": {
+            "description": "Your session id. The `plannotator inbox mcp` shim fills it. send_message joins your session's thread by it; read_thread's asked_by \"me\" and wait_for_reply without a thread match on it.",
+            "type": "string"
+          },
+          "agent_name": {
+            "description": "How the person sees you, e.g. \"Claude Code\".",
+            "type": "string"
+          },
+          "agent_host": {
+            "description": "Your agent host, e.g. claude-code, codex, cursor.",
+            "type": "string"
+          },
+          "attachments": {
+            "description": "Files for the person to open and annotate beside your message, e.g. [\"docs/plan.md\", \"proto/admin.html\", \"flow.mmd\"]: absolute, or relative to project_path, inside the project. Markdown, plain text, config and data files, Mermaid and Graphviz sources, HTML (its relative images and frames load from its folder), and source code and scripts (e.g. .ts, .mjs, .py, .sh, .swift, Makefile; shown read-only as text, binary content refused); .env is refused. The Inbox keeps the version you sent and shows the file as it is now, saying when it changed. The person's annotations come back in their reply.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "read_thread",
+      "title": "Read a thread, or list your threads",
+      "description": "Read one Inbox thread (thread_id or message_id): every message with its questions and the person's answers. Without an id, list this project's threads, newest activity first, each with its section in the person's list: only the ones you sent in unless asked_by is \"anyone\", and only open ones unless include_resolved.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "thread_id": {
+            "type": "string"
+          },
+          "message_id": {
+            "type": "string"
+          },
+          "project_path": {
+            "description": "Absolute path of the repository or folder you work in; the thread lands in that project's row. The `plannotator inbox mcp` shim fills it from its working folder.",
+            "type": "string"
+          },
+          "asked_by": {
+            "description": "Default \"me\" when your session is known.",
+            "type": "string",
+            "enum": [
+              "me",
+              "anyone"
+            ]
+          },
+          "include_resolved": {
+            "type": "boolean"
+          },
+          "limit": {
+            "description": "Threads to list (default 20).",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "agent_session": {
+            "description": "Your session id. The `plannotator inbox mcp` shim fills it. send_message joins your session's thread by it; read_thread's asked_by \"me\" and wait_for_reply without a thread match on it.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "resolve_message",
+      "title": "Resolve a thread",
+      "description": "Close the thread a message belongs to once you have what you needed (resolved: false reopens it). Its questions read as closed.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "message_id": {
+            "type": "string",
+            "description": "Any message id in the thread, or the thread id."
+          },
+          "resolved": {
+            "description": "Default true.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "message_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "wait_for_reply",
+      "title": "Wait for the person's reply",
+      "description": "Wait for the person's reply in a thread (thread_id or message_id), or in any open thread you asked when neither is given. Returns the reply as soon as it lands, or { status: \"waiting\", cursor } after about 50 seconds: call again with that cursor to keep waiting. Without a cursor, any reply after your last message in the thread counts.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "thread_id": {
+            "type": "string"
+          },
+          "message_id": {
+            "type": "string"
+          },
+          "cursor": {
+            "description": "The cursor a previous call returned.",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "timeout_seconds": {
+            "description": "Wait at most this long (default 50).",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "project_path": {
+            "description": "Absolute path of the repository or folder you work in; the thread lands in that project's row. The `plannotator inbox mcp` shim fills it from its working folder.",
+            "type": "string"
+          },
+          "agent_session": {
+            "description": "Your session id. The `plannotator inbox mcp` shim fills it. send_message joins your session's thread by it; read_thread's asked_by \"me\" and wait_for_reply without a thread match on it.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "list_decisions",
+      "title": "List the project's decisions",
+      "description": "List the decisions that hold in this project (state \"current\", the default), or the replaced, retired or all of them, oldest first. Each has text, reason, source (an answer the person sent, an agent's record_decision, or the person's own words), state, version and, for a replaced one, replacement_id.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "project_path": {
+            "description": "Absolute path of the repository or folder you work in; the thread lands in that project's row. The `plannotator inbox mcp` shim fills it from its working folder.",
+            "type": "string"
+          },
+          "state": {
+            "description": "Default \"current\".",
+            "type": "string",
+            "enum": [
+              "current",
+              "replaced",
+              "retired",
+              "all"
+            ]
+          },
+          "agent_session": {
+            "description": "Your session id. The `plannotator inbox mcp` shim fills it. send_message joins your session's thread by it; read_thread's asked_by \"me\" and wait_for_reply without a thread match on it.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "record_decision",
+      "title": "Record a decision in the project",
+      "description": "Record a decision that now holds in this project, one you settled with the person (it shows on their Decisions page as recorded by you). text is the decision as one statement, e.g. \"Webhooks are verified before any database write.\"; reason says why. To have the person's answer to a question recorded instead, write `Decision: when answered` in the question block.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The decision, one statement."
+          },
+          "reason": {
+            "description": "Why it holds.",
+            "type": "string"
+          },
+          "project_path": {
+            "description": "Absolute path of the repository or folder you work in; the thread lands in that project's row. The `plannotator inbox mcp` shim fills it from its working folder.",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "description": "Any unique string; recording again with the same key answers the first decision.",
+            "type": "string"
+          },
+          "agent_session": {
+            "description": "Your session id. The `plannotator inbox mcp` shim fills it. send_message joins your session's thread by it; read_thread's asked_by \"me\" and wait_for_reply without a thread match on it.",
+            "type": "string"
+          },
+          "agent_name": {
+            "description": "How the person sees you, e.g. \"Claude Code\".",
+            "type": "string"
+          },
+          "agent_host": {
+            "description": "Your agent host, e.g. claude-code, codex, cursor.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_guide_brief",
+      "title": "Get the method for a guided review",
+      "description": "Get what you need to write a guided review of a code change for the person: Plannotator's method, the JSON shape of the guide, how to read the diff, the rules, and a worked submit_guide call. Read the diff in your checkout, write the guide on your own model, then call submit_guide with the guide and that exact patch.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "submit_guide",
+      "title": "Send the person a guided review",
+      "description": "Send the person a guided review of a code change. It lands in the Plannotator Inbox as a message with a \"Guided review\" card that opens in Plannotator's guide viewer. Pass `guide` (the shape get_guide_brief gives) and `patch` (the exact unified diff it describes), or `snapshot` (a complete Plannotator guide snapshot). Every file a section names must be in the patch, in one section only; a refusal names the file. Files you leave out show under \"Everything else\". `body` is your note above the card (default: the guide's intent). thread, reply_to and idempotency_key work as in send_message; the person's answer comes back through wait_for_reply.\n\nExample: get_guide_brief's `example` is a call that works as it is.",
+      "inputSchema": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "guide": {
+            "description": "The guide: { title, intent, sections: [{ title, overview, diffs: [{ file, summary }] }], unplacedFiles?, review?: { gitRef, base }, source?, generator? } (get_guide_brief's output_schema), as an object or its JSON.",
+            "anyOf": [
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "patch": {
+            "description": "The exact unified diff the guide describes (get_guide_brief's diff_steps).",
+            "type": "string"
+          },
+          "snapshot": {
+            "description": "Instead of guide and patch: a complete Plannotator guide snapshot, as an object or its JSON.",
+            "anyOf": [
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "body": {
+            "description": "Your note above the card, markdown. Default: the guide's intent.",
+            "type": "string"
+          },
+          "project_path": {
+            "description": "Absolute path of the repository or folder you work in; the thread lands in that project's row. The `plannotator inbox mcp` shim fills it from its working folder.",
+            "type": "string"
+          },
+          "subject": {
+            "description": "A short subject when this starts a thread (ignored when it joins one). Default: the first question's prompt, else the first line.",
+            "type": "string"
+          },
+          "thread": {
+            "description": "A short thread name (1-120 characters, one line). Without it, your messages join your session's open thread in this project (a new one the first time, or once the person resolved it; a thread keeps its first subject). With it, the same name in this project is the same open thread, across sessions (compared without case, spacing or invisible characters). Use it to split separate work, or to join another session's thread. Ignored with reply_to.",
+            "type": "string"
+          },
+          "reply_to": {
+            "description": "A message id: post this as a reply in that message's thread.",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "description": "Any unique string; sending again with the same key answers the first message instead of posting twice.",
+            "type": "string"
+          },
+          "agent_session": {
+            "description": "Your session id. The `plannotator inbox mcp` shim fills it. send_message joins your session's thread by it; read_thread's asked_by \"me\" and wait_for_reply without a thread match on it.",
+            "type": "string"
+          },
+          "agent_name": {
+            "description": "How the person sees you, e.g. \"Claude Code\".",
+            "type": "string"
+          },
+          "agent_host": {
+            "description": "Your agent host, e.g. claude-code, codex, cursor.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      }
+    }
+  ]
+}

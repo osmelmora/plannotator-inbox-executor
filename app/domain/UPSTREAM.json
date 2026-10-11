@@ -1,0 +1,55 @@
+{
+  "upstream": "https://github.com/backnotprop/plannotator",
+  "commit": "177c34099258fa380c6b90c6f3e9411c13f6f463",
+  "license": "MIT OR Apache-2.0",
+  "files": [
+    {
+      "fork": "store.ts",
+      "upstream": "packages/shared/inbox/store.ts",
+      "upstreamSha256": "6b20463761904fde6ebf11c0f04f4f80930c426866bf14f536c9158f7a8ed486",
+      "forkSha256": "a3f71c84327639f1ebc8f972b6fb90a95ffb51e0b0622be4056d823cbe352054"
+    },
+    {
+      "fork": "list.ts",
+      "upstream": "packages/shared/inbox/list.ts",
+      "upstreamSha256": "6228c1661ccec76be9770a90d9279bbaf66c834cb857f23726c03637384123f0",
+      "forkSha256": "6c0890d2a48c41b5b9792db7edbafb644f09d0b4d7a491dcfa41e7acc86d27ab"
+    },
+    {
+      "fork": "schema.ts",
+      "upstream": "packages/shared/inbox/schema.ts",
+      "upstreamSha256": "032d263e17337b8ce746d711d93b42c366b89dbd34eb6772b5122e1d5e9abc0d",
+      "forkSha256": "c1d95a802249c57f95adfee668248063720b9a33805f4b78b0abd8426c947459"
+    },
+    {
+      "fork": "decisions.ts",
+      "upstream": "packages/server/inbox-decisions.ts",
+      "upstreamSha256": "47ed2013821ba269a102a1d6e75653f3d87cb5c87713ef0801f0b8a117baa638",
+      "forkSha256": "9d79fbe2b8551b79abff4645b20d69a47a31de6cec2330cc389c3df58f485107"
+    },
+    {
+      "fork": "guides.ts",
+      "upstream": "packages/server/inbox-guides.ts",
+      "upstreamSha256": "6c12ad6c825e263d1f434e530ce498d5869d174285b3dd75ca3d50e49d5546cf",
+      "forkSha256": "923c5f459ae51a9cda4100f80d3d57739cd00e1f71676e64934abf0777d3366b"
+    },
+    {
+      "fork": "authored-guide.ts",
+      "upstream": "packages/server/guide/guide-cli.ts",
+      "upstreamSha256": "33e7098f76ad477221a3941255f8018bd9ff7c63d4376369b5c213cbaf64deb2",
+      "forkSha256": "00201833b72ca04605659738358ac817eda6e3b724c2fcd2d04af239033658ac"
+    },
+    {
+      "fork": "LICENSE-MIT",
+      "upstream": "LICENSE-MIT",
+      "upstreamSha256": "4307b84eae31b7ee1436003da418390ba69a4d016195cbfc451a1e8ef9e923c0",
+      "forkSha256": "4307b84eae31b7ee1436003da418390ba69a4d016195cbfc451a1e8ef9e923c0"
+    },
+    {
+      "fork": "LICENSE-APACHE",
+      "upstream": "LICENSE-APACHE",
+      "upstreamSha256": "b96752709405e4b4eefda5514d01941a25d78230bddd891523279fed63eed5e0",
+      "forkSha256": "b96752709405e4b4eefda5514d01941a25d78230bddd891523279fed63eed5e0"
+    }
+  ]
+}

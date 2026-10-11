@@ -1,0 +1,44 @@
+# Credentials, deployments, generated receipts, and local historical material.
+.runtime/
+.private/
+.local/
+.upstream/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+scoped-oauth.json
+oauth-state.json
+cookies.json
+storage-state.json
+inbox.config.json
+inbox.config.*.json
+inbox.*.config.json
+config.local.json
+*.config.local.json
+!config.example.json
+
+# Dependencies and generated build/test output.
+node_modules/
+coverage/
+test-results/
+playwright-report/
+*.tsbuildinfo
+*.log
+
+# Inbox database and local state never belong in a source release.
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+
+# Editor and operating-system state.
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo

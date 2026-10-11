@@ -1,0 +1,40 @@
+name: Source checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: source-checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+      - name: Install locked app dependencies
+        run: npm ci --prefix app --ignore-scripts
+      - name: Check publication source
+        run: npm run check
+      - name: Run isolated tests
+        run: npm test
+      - name: Typecheck server and UI
+        run: npm run typecheck
+      - name: Build hosted UI
+        run: npm run build
+      - name: Recheck generated source
+        run: npm run check

@@ -1,0 +1,20 @@
+* text=auto eol=lf
+*.png binary
+*.webp binary
+*.jpg binary
+*.jpeg binary
+*.woff2 binary
+*.ico binary
+
+# Avoid inflating repository-language statistics with retained upstream source.
+app/vendor/** linguist-vendored
+app/domain/** linguist-vendored
+app/ui/public/** linguist-generated
+docs/ui-*-receipt.json linguist-generated
+docs/ui-dependency-inventory.json linguist-generated
+
+# These should never be tracked; also exclude them from source archives defensively.
+.runtime/** export-ignore
+.private/** export-ignore
+.local/** export-ignore
+.upstream/** export-ignore

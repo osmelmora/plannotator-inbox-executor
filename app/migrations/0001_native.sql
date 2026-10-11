@@ -1,0 +1,13 @@
+CREATE TABLE inbox_events(seq INTEGER PRIMARY KEY, kind TEXT NOT NULL, record_id TEXT NOT NULL, project_id TEXT NOT NULL, line TEXT NOT NULL);
+CREATE INDEX inbox_events_project ON inbox_events(project_id,seq);
+CREATE TABLE sessions(id TEXT PRIMARY KEY, principal_id TEXT NOT NULL, environment_id TEXT NOT NULL, origin_thread TEXT NOT NULL, project_key TEXT NOT NULL, project_id TEXT NOT NULL, source_path TEXT NOT NULL, agent_name TEXT, created_at TEXT NOT NULL, UNIQUE(principal_id, environment_id, origin_thread, project_key));
+CREATE TABLE memberships(session_id TEXT NOT NULL, thread_id TEXT NOT NULL, joined_at TEXT NOT NULL, PRIMARY KEY(session_id,thread_id));
+CREATE TABLE thread_names(project_id TEXT NOT NULL, name_key TEXT NOT NULL, owner_session TEXT NOT NULL, PRIMARY KEY(project_id,name_key));
+CREATE TABLE requests(principal_id TEXT NOT NULL, scope TEXT NOT NULL, operation TEXT NOT NULL, request_key TEXT NOT NULL, payload_hash TEXT NOT NULL, result_json TEXT NOT NULL, PRIMARY KEY(principal_id,scope,operation,request_key));
+CREATE TABLE cursors(session_id TEXT NOT NULL, scope TEXT NOT NULL, acknowledged INTEGER NOT NULL, returned INTEGER NOT NULL, PRIMARY KEY(session_id,scope));
+CREATE TABLE snapshots(id TEXT PRIMARY KEY, session_id TEXT NOT NULL, manifest_hash TEXT NOT NULL, revision_json TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE(session_id,manifest_hash));
+CREATE TABLE snapshot_files(snapshot_id TEXT NOT NULL, path TEXT NOT NULL, encoding TEXT NOT NULL, sha256 TEXT NOT NULL, size INTEGER NOT NULL, mtime TEXT, PRIMARY KEY(snapshot_id,path));
+CREATE TABLE blobs(sha256 TEXT PRIMARY KEY, content_base64 TEXT NOT NULL, size INTEGER NOT NULL);
+CREATE TABLE upload_chunks(session_id TEXT NOT NULL, upload_id TEXT NOT NULL, part INTEGER NOT NULL, content_base64 TEXT NOT NULL, PRIMARY KEY(session_id,upload_id,part));
+CREATE TABLE invites(token_hash TEXT PRIMARY KEY, project_id TEXT NOT NULL, thread_id TEXT NOT NULL, issuer_session TEXT NOT NULL, expires_at INTEGER NOT NULL, joined_session TEXT);
+CREATE TABLE settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);

@@ -1,0 +1,14 @@
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/geist-mono";
+@import "tailwindcss";
+@plugin "tailwindcss-animate";
+@source "../vendor/ui/**/*.tsx";
+@source "../vendor/ui/**/*.ts";
+@source "../vendor/inbox/**/*.tsx";
+@source "../vendor/guide-viewer/**/*.tsx";
+@source "../vendor/review-editor/**/*.tsx";
+@import "../vendor/ui/theme.css";
+@import "../vendor/inbox/inbox.css";
+
+html, body, #root { width: 100%; height: 100%; margin: 0; }
+
