@@ -41,7 +41,7 @@ This tooling migration was local source work; its checks did not update the exis
 
 ## Cloud update before publication
 
-On 2026-10-11, source commit `422e1b6` was deployed to the existing Executor Cloud installation against `apps@0.0.1-beta.81`. Before deployment, `pnpm verify` passed lint, server/UI type checks, all **76 tests** (including 19 installer tests and a provider-identity regression through the actual SDK host serializer), the hosted build, provenance, browser-boundary checks, and documentation checks. Automated code review reported no findings.
+On 2026-10-11, source commit `249f0ae` was deployed to the existing Executor Cloud installation against `apps@0.0.1-beta.81`. Before deployment, `pnpm verify` passed lint, server/UI type checks, all **76 tests** (including 19 installer tests and a provider-identity regression through the actual SDK host serializer), the hosted build, provenance, browser-boundary checks, and documentation checks. Automated code review reported no findings.
 
 The first update attempt exposed an account-compatibility issue: renamed provider labels changed Executor's provider identity and invalidated existing account bindings. That attempt was rolled back. The corrected source preserves the exact original provider declaration; the successful update reused existing accounts and profiles without recreating them. The [compatibility contract](compatibility.md#account-provider-identity) documents this constraint.
 

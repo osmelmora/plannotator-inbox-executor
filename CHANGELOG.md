@@ -4,7 +4,7 @@
 
 - Preserved the original Executor account provider declaration so source upgrades retain existing account/profile bindings; added a regression test through the actual pinned SDK host serializer.
 - Excluded the pnpm lockfile from Executor source uploads while retaining it in local staging and build integrity checks.
-- Updated the existing Cloud deployment from source commit `422e1b6`; authenticated read-only checks preserved both agent connections, stored review material, and unread reply state. No new browser round trip was performed for this update.
+- Updated the existing Cloud deployment from source commit `249f0ae`; authenticated read-only checks preserved both agent connections, stored review material, and unread reply state. No new browser round trip was performed for this update.
 - Pinned Node.js 24.21.0, pnpm 12.11.2, and Bun 1.4.2 with mise; moved installs and deployment tooling to separate frozen pnpm lockfiles for root tooling and the app.
 - Added Ultracite 8.0.0 and Biome 2.5.15 for maintained source, keeping vendored and generated material outside routine formatting. CI installs the same toolchain and runs the complete verification command.
 
