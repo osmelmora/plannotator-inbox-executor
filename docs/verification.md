@@ -21,7 +21,7 @@ The Cloud path used actual agent MCP calls and the real UI. Administrator APIs p
 
 ## Source-release preparation before the toolchain migration
 
-The standalone repository has a fresh, configurable installer and synthetic examples. Its checks must be interpreted separately from the earlier Cloud deployment: **a clean installation into another Cloud organization has not yet been tested end to end**. The original deployment has not been replaced merely to rename or package this repository.
+The standalone repository has a fresh, configurable installer and synthetic examples. Its checks must be interpreted separately from the earlier Cloud deployment: **a clean installation into another Cloud organization has not yet been tested end to end**. At this preparation checkpoint, the existing Cloud deployment was unchanged.
 
 The source-release suite passed 73 tests across eight files, including 17 isolated installer tests and seven publication-scanner tests. Server/UI type checks, CSS compilation, hosted bundle generation, fork provenance, browser boundary checks, three direct diff-renderer cases, and documentation links also passed. The locked dependency audit reported no vulnerabilities at preparation time. A checkout exported exclusively from the Git index also passed the complete verification command without private runtime state or preinstalled dependencies.
 
@@ -37,7 +37,25 @@ A checkout exported exclusively from the Git index passed both frozen pnpm insta
 
 The app's pnpm audit reported zero vulnerabilities on 2026-10-11. The separate root development toolchain reports one high-severity advisory, [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), in Ultracite's transitive `braces@3.0.3` dependency. No patched version is published at this check. It concerns deeply nested glob patterns in local lint/workspace configuration; Ultracite and this dependency are absent from the deployable app. The finding remains visible rather than suppressed.
 
-This tooling migration is local source work; it does not update the existing Cloud deployment or establish a fresh Cloud round trip. No browser automation was used for these checks.
+This tooling migration was local source work; its checks did not update the existing Cloud deployment or establish a fresh Cloud round trip. No browser automation was used. The subsequent Cloud update is recorded below.
+
+## Cloud update before publication
+
+On 2026-10-11, source commit `422e1b6` was deployed to the existing Executor Cloud installation against `apps@0.0.1-beta.81`. Before deployment, `pnpm verify` passed lint, server/UI type checks, all **76 tests** (including 19 installer tests and a provider-identity regression through the actual SDK host serializer), the hosted build, provenance, browser-boundary checks, and documentation checks. Automated code review reported no findings.
+
+The first update attempt exposed an account-compatibility issue: renamed provider labels changed Executor's provider identity and invalidated existing account bindings. That attempt was rolled back. The corrected source preserves the exact original provider declaration; the successful update reused existing accounts and profiles without recreating them. The [compatibility contract](compatibility.md#account-provider-identity) documents this constraint.
+
+Final verification used authenticated read-only requests and comparisons with the pre-update baseline:
+
+| Boundary | Observed result |
+| --- | --- |
+| Agent MCP connections | Both real OAuth clients discovered 16 tools each. All 32 discovered input signatures were unchanged. |
+| Routing and persistence | Distinct sessions and threads still mapped to the shared project. Stored rows and reply cursors were unchanged. Agent A's unchecked reply and agent B's checked history were preserved. |
+| Review snapshots | All four immutable file hashes were unchanged. |
+| Access control | Five authorization checks were rejected as expected. All three profiles remained ready, with the same account bindings and request grants. |
+| Reviewer API | Health and thread requests returned HTTP 200. Project, section, cursor, and decision payloads matched the baseline, apart from an intentional branding notice update. |
+
+No new browser session or human reply round trip was performed during this update. The earlier real UI/MCP checks remain the evidence for browser rendering and human answer/annotation delivery. These update checks establish preservation of the existing installation; they do not establish a clean installation in a second organization. Operational identifiers, URLs, credentials, and comparison receipts remain private.
 
 ## Still unverified or unavailable
 

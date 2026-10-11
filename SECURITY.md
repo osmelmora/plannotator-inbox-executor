@@ -4,7 +4,7 @@ This app handles code snapshots and agent/human messages. Deploy it inside an Ex
 
 ## Reporting a vulnerability
 
-Use the repository's **Security → Report a vulnerability** option if private reporting is enabled. Do not include credentials, real uploaded source, or private thread contents in a public issue. If no private reporting channel is listed, open a minimal issue requesting a private contact without disclosing exploitation details.
+Use [GitHub's private vulnerability reporting](https://github.com/osmelmora/plannotator-inbox-executor/security/advisories/new). Do not include credentials, real uploaded source, or private thread contents in a public issue. For a fork without private reporting enabled, open a minimal issue requesting a private contact without disclosing exploitation details.
 
 No response-time or long-term security-support commitment is currently established. Report the repository revision, Executor framework version, affected operation, and a synthetic reproduction.
 

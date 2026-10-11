@@ -6,9 +6,11 @@ If you want another T3 machine to use your existing Inbox, configure its authori
 
 ## 1. Get the source and sign in
 
-Clone or download this repository, then run commands from its root. Install [mise](https://mise.jdx.dev/getting-started.html), inspect the repository configuration, and set up the pinned toolchain and both dependency trees:
+Install [mise](https://mise.jdx.dev/getting-started.html), clone the repository, and inspect its configuration before trusting it. Set up the pinned toolchain and both dependency trees:
 
 ```sh
+git clone https://github.com/osmelmora/plannotator-inbox-executor.git
+cd plannotator-inbox-executor
 mise trust
 mise install
 mise exec -- pnpm install --frozen-lockfile --ignore-scripts
@@ -133,6 +135,8 @@ Then follow [the round-trip walkthrough](docs/round-trip.md): open a durable ses
 Keep `inbox.config.json` and `.runtime/installations/<installation>/` private and backed up together. That directory contains generated credentials, app/profile receipts, and staging state. It is operator state, not a backup of the hosted Inbox database. Normal agents do not need a copy.
 
 To update source, preserve those files, fetch/review the changes, and rerun `install` with the same configuration. The saved receipt identifies the existing app; the installer retains its credentials. Check [the changelog](CHANGELOG.md) and any migration requirements first. Applied database migrations must be extended rather than rewritten.
+
+Preserve the [account provider declaration](docs/compatibility.md#account-provider-identity), including its labels and credential schema. Executor uses that declaration to bind existing accounts; cosmetic app branding changes must not rename the provider.
 
 To make an independent installation, use a separate source checkout and a new config/state directory. Do not copy `.runtime/` or another installation's credentials. Losing operator state is not a safe reason to regenerate identities over an existing app.
 

@@ -11,7 +11,8 @@ This is an independent port of [Plannotator Inbox](https://plannotator.ai/docs/r
 You need an Executor organization where you can create apps, accounts, profiles, and scoped MCP connections. Install [mise](https://mise.jdx.dev/getting-started.html) on your setup machine; [`mise.toml`](mise.toml) pins Node.js 24.21.0, pnpm 12.11.2, and Bun 1.4.2. Bun runs the local tests; it is not a deployed app dependency.
 
 ```sh
-# From a downloaded or cloned copy of this repository:
+git clone https://github.com/osmelmora/plannotator-inbox-executor.git
+cd plannotator-inbox-executor
 mise trust
 mise install
 mise exec -- pnpm install --frozen-lockfile --ignore-scripts
