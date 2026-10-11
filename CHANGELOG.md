@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Allowed the exact host-required `apps@0.0.1-beta.81` SDK during pnpm's release-age waiting period so fresh frozen installs work; other dependency age and integrity checks remain enabled.
 - Preserved the original Executor account provider declaration so source upgrades retain existing account/profile bindings; added a regression test through the actual pinned SDK host serializer.
 - Excluded the pnpm lockfile from Executor source uploads while retaining it in local staging and build integrity checks.
 - Updated the existing Cloud deployment from source commit `249f0ae`; authenticated read-only checks preserved both agent connections, stored review material, and unread reply state. No new browser round trip was performed for this update.

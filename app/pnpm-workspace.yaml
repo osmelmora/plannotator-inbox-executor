@@ -1,6 +1,9 @@
 packages:
   - .
 
+minimumReleaseAgeExclude:
+  - apps@0.0.1-beta.81
+
 overrides:
   katex: 0.18.2
   lodash-es: 4.18.1

@@ -16,6 +16,8 @@ mise exec -- pnpm verify
 
 The pinned toolchain is Node.js 24.21.0, pnpm 12.11.2, and Bun 1.4.2. Root tooling and the deployable app deliberately have separate dependency manifests and lockfiles. Install both; the app's installation also works independently when staged for deployment. An activated mise shell can omit `mise exec --`.
 
+The app workspace exempts only `apps@0.0.1-beta.81` from pnpm's [minimum release age](https://pnpm.io/settings/dependency-resolution#minimumreleaseageexclude). This exact SDK version is advertised by the Executor Cloud host and has passed local and Cloud checks; the exception lets fresh installs use it during pnpm's default 24-hour waiting period. Other dependency age and lockfile integrity checks remain enabled.
+
 `pnpm verify` runs lint, server/UI type checks, isolated tests, the UI build, and publication/provenance/browser/documentation checks. Tests use synthetic local data and need no operator credentials or signed-in browser. CI runs the same command after installing the toolchain with [`jdx/mise-action`](https://github.com/jdx/mise-action/tree/v3).
 
 ## Lint and formatting
