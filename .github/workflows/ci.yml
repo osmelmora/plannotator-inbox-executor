@@ -17,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
       - name: Install pinned toolchain
-        uses: jdx/mise-action@v3
+        uses: jdx/mise-action@v5.1.1
       - name: Install locked development tooling
         run: mise exec -- pnpm install --frozen-lockfile --ignore-scripts
       - name: Install locked app dependencies
