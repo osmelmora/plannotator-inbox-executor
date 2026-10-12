@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { cloudApi } from "./cloud-api.mjs";
 import { configDigest, credentialHash } from "./config.mjs";
 import { run } from "./process.mjs";
@@ -65,6 +66,21 @@ export async function collectSource(directory, prefix = "") {
 }
 export function sourceDigest(files) {
   return createHash("sha256").update(JSON.stringify(files)).digest("hex");
+}
+function requireBareName(files) {
+  const manifest = files.find((file) => file.path === "package.json");
+  if (JSON.parse(manifest.content).name.startsWith("@")) {
+    throw new Error(
+      "The installation package.json must keep a bare name, so Executor refuses to publish commits that carry grants."
+    );
+  }
+}
+function sameSource(left, right) {
+  const contents = new Map(right.map((file) => [file.path, file.content]));
+  return (
+    left.length === right.length &&
+    left.every((file) => contents.get(file.path) === file.content)
+  );
 }
 export function uploadSource(files, runtime) {
   const imported = new Set(runtime);
@@ -351,6 +367,7 @@ export function createInstaller({
       throw new Error("Build again to record the runtime import graph.");
     }
     const upload = uploadSource(files, built.runtime);
+    requireBareName(upload);
     await writeJson(sourceFile, upload);
     if (!app) {
       const pending = await readJson(receipt("creation-pending"), true);
@@ -559,7 +576,74 @@ export function createInstaller({
       profiles: mapping ? publicProfiles(mapping) : null,
     };
   }
-  return { prepare, build, deploy, profiles, status };
+  async function planPublication(original, organizationSlug) {
+    const configFile = path.join(root, "app/config.ts");
+    const { grants, projects } = await import(pathToFileURL(configFile).href);
+    if (grants.length || Object.keys(projects).length) {
+      throw new Error("The public app/config.ts must authorize nobody.");
+    }
+    const publicConfig = await readFile(configFile, "utf8");
+    const installed = original.find((file) => file.path === "config.ts");
+    if (!installed || installed.content === publicConfig) {
+      throw new Error(
+        "The working source has no installation grants in config.ts; deploy before publication."
+      );
+    }
+    requireBareName(original);
+    const name = `@${organizationSlug}.executor.community/${config.app.slug}`;
+    const published = original.map((file) => {
+      if (file.path === "config.ts") {
+        return { ...file, content: publicConfig };
+      }
+      if (file.path === "package.json") {
+        const manifest = { ...JSON.parse(file.content), name };
+        return { ...file, content: `${JSON.stringify(manifest, null, 2)}\n` };
+      }
+      return file;
+    });
+    return { name, original, published };
+  }
+  // Executor lists a public app from one source commit. That commit gets the
+  // scoped name and the public config; installation commits keep the bare name,
+  // which Executor refuses to publish, so their grants never reach a listing.
+  async function publication() {
+    await identity();
+    const app = await readJson(receipt("app"));
+    const api = await apiFactory(config, app.id, cli);
+    checkApp(app, config, api.context.organization);
+    const pendingFile = receipt("publication-pending");
+    const source = await readSource(app.id);
+    // The pending plan keeps both snapshots until the restore succeeds, so a
+    // rerun after a failure between the two commits replays the same plan.
+    const plan =
+      (await readJson(pendingFile, true)) ??
+      (await planPublication(source.files, api.context.slug));
+    await writeJson(pendingFile, plan);
+    let { commit } = source.revision;
+    if (sameSource(source.files, plan.original)) {
+      commit = await commitSource(
+        app.id,
+        plan.published,
+        commit,
+        "Public source without installation grants"
+      );
+    } else if (!sameSource(source.files, plan.published)) {
+      throw new Error(
+        "The working source changed during publication. Inspect it, then remove publication-pending.json to start again."
+      );
+    }
+    const restored = await commitSource(
+      app.id,
+      plan.original,
+      commit,
+      "Restore installation grants"
+    );
+    const result = { name: plan.name, commit, restored };
+    await writeJson(receipt("publication"), result);
+    await rm(pendingFile, { force: true });
+    return result;
+  }
+  return { prepare, build, deploy, profiles, publication, status };
 }
 function publicProfiles(mapping) {
   return {

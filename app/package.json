@@ -1,6 +1,7 @@
 {
   "name": "plannotator-inbox-executor",
   "private": true,
+  "description": "A shared Plannotator Inbox hosted in Executor for agents running on separate machines.",
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit"

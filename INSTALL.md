@@ -140,6 +140,16 @@ Preserve the [account provider declaration](docs/compatibility.md#account-provid
 
 To make an independent installation, use a separate source checkout and a new config/state directory. Do not copy `.runtime/` or another installation's credentials. Losing operator state is not a safe reason to regenerate identities over an existing app.
 
+## Publish a public listing (optional)
+
+Executor lists a public app from one commit of its source. That commit needs a package name in your organization's scope and must not carry your installation's grants. After a successful deploy, run:
+
+```sh
+mise exec -- node scripts/install.mjs publication --config inbox.config.json
+```
+
+The command saves a commit with the public `app/config.ts`, which authorizes nobody, and the name `@<organization-slug>.executor.community/<app-slug>`. It then saves your installation's source again, so the running app and later deploys keep their grants. Installation commits keep the bare package name, and Executor refuses to publish that name. Deploy and `publication` stop if `app/package.json` has a scoped name. Publish the printed `commit` with Executor's `appManagement.publish`. If the command stops between its two commits, rerun it. It replays the plan saved in `publication-pending.json` and restores your installation source. A copy of the listing authorizes nobody until its owner adds their own grants. Rerun `publication` after renaming your organization, because the scope follows its current slug.
+
 ## Tested scope
 
 The original app passed a real Executor Cloud MCP/UI round trip and redeployment check. The reusable installer is prepared for fresh source installs; **a second organization's complete installation has not yet been verified**. See [verification](docs/verification.md).

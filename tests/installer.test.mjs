@@ -89,7 +89,9 @@ async function fixture(t, configOverrides = {}, appId = "app_fixture") {
     connections = [],
     uploads = [];
   let version = "0.0.1-beta.81",
-    failCreate = false;
+    head = "created",
+    failCreate = false,
+    lostCommit = 0;
   const cli = async (args) => {
     calls.push(args);
     if (args[0] === "create" || args[0] === "commit") {
@@ -117,9 +119,16 @@ async function fixture(t, configOverrides = {}, appId = "app_fixture") {
         return structuredClone(app);
       }
       case "source":
-        return { revision: { commit: "before" } };
+        return {
+          revision: { commit: head },
+          files: structuredClone(uploads.at(-1)?.files ?? []),
+        };
       case "commit":
-        return { revision: { commit: "after" } };
+        head = `commit-${uploads.length}`;
+        if (uploads.length === lostCommit) {
+          throw new Error("Lost commit response");
+        }
+        return { revision: { commit: head } };
       case "deploy":
         return { deployment: { id: "dpl_fixture" } };
       default:
@@ -242,6 +251,9 @@ async function fixture(t, configOverrides = {}, appId = "app_fixture") {
     },
     loseCreate() {
       failCreate = true;
+    },
+    loseCommitResponse(upload) {
+      lostCommit = upload;
     },
   };
 }
@@ -555,6 +567,129 @@ test("deployment uploads the runtime import graph and host-read files while buil
   assert.deepEqual(runtime, ["config.ts", "index.ts"]);
   await writeJson(buildReceipt, withoutRuntime);
   await assert.rejects(f.installer.deploy(), /Build again/);
+});
+
+test("publication saves a scoped commit without grants, then restores the installation source", async (t) => {
+  const f = await fixture(t);
+  await assert.rejects(f.installer.publication(), /Run prepare first/);
+  await f.installer.prepare();
+  await f.installer.build();
+  await f.installer.deploy();
+  const deployed = f.uploads.at(-1).files;
+  const content = (files, file) =>
+    files.find((entry) => entry.path === file).content;
+  assert(content(deployed, "config.ts").includes("credentialHash"));
+  assert.equal(JSON.parse(content(deployed, "package.json")).name, "test-app");
+
+  const result = await f.installer.publication();
+  const [published, restored] = f.uploads.slice(-2).map((u) => u.files);
+  const name = "@test-org.executor.community/plannotator-inbox-executor";
+  assert.equal(
+    content(published, "config.ts"),
+    "export const grants = []; export const projects = {};\n"
+  );
+  assert.deepEqual(JSON.parse(content(published, "package.json")), {
+    ...JSON.parse(content(deployed, "package.json")),
+    name,
+  });
+  const unchanged = (files) =>
+    files.filter((file) => !["config.ts", "package.json"].includes(file.path));
+  assert.deepEqual(unchanged(published), unchanged(deployed));
+  assert.deepEqual(restored, deployed);
+  const commits = f.calls.filter((call) => call[0] === "commit").slice(-2);
+  assert.deepEqual(
+    commits.map((call) => call[call.indexOf("--expected") + 1]),
+    ["commit-2", "commit-3"]
+  );
+  assert.deepEqual(result, { name, commit: "commit-3", restored: "commit-4" });
+  assert.deepEqual(
+    JSON.parse(await readFile(path.join(f.directory, "publication.json"))),
+    result
+  );
+
+  f.uploads.push({ operation: "commit", files: published });
+  await assert.rejects(f.installer.publication(), /no installation grants/);
+  f.uploads.push({
+    operation: "commit",
+    files: deployed.filter((file) => file.path !== "config.ts"),
+  });
+  await assert.rejects(f.installer.publication(), /no installation grants/);
+});
+
+test("publication rerun restores the installation source after a lost commit response", async (t) => {
+  const f = await fixture(t);
+  await f.installer.prepare();
+  await f.installer.build();
+  await f.installer.deploy();
+  const deployed = f.uploads.at(-1).files;
+  const pendingFile = path.join(f.directory, "publication-pending.json");
+  f.loseCommitResponse(3);
+  await assert.rejects(f.installer.publication(), /Lost commit response/);
+  const published = f.uploads.at(-1).files;
+  assert.notDeepEqual(published, deployed);
+  assert.deepEqual(JSON.parse(await readFile(pendingFile)).original, deployed);
+
+  f.api.context.slug = "renamed-org";
+  await writeFile(
+    path.join(f.root, "app/config.ts"),
+    "// Edited between attempts.\nexport const grants = []; export const projects = {};\n"
+  );
+  const result = await f.installer.publication();
+  assert.equal(f.uploads.length, 4);
+  assert.deepEqual(f.uploads.at(-1).files, deployed);
+  assert.deepEqual(result, {
+    name: "@test-org.executor.community/plannotator-inbox-executor",
+    commit: "commit-3",
+    restored: "commit-4",
+  });
+  await assert.rejects(readFile(pendingFile), /ENOENT/);
+});
+
+test("installation sources keep a bare package name so Executor refuses to publish their grants", async (t) => {
+  const f = await fixture(t);
+  await f.installer.prepare();
+  await f.installer.build();
+  await f.installer.deploy();
+  const deployed = f.uploads.at(-1).files;
+  const scoped = deployed.map((file) =>
+    file.path === "package.json"
+      ? {
+          ...file,
+          content: JSON.stringify({
+            ...JSON.parse(file.content),
+            name: "@test-org.executor.community/plannotator-inbox-executor",
+          }),
+        }
+      : file
+  );
+  f.uploads.push({ operation: "commit", files: scoped });
+  const uploads = f.uploads.length;
+  await assert.rejects(f.installer.publication(), /bare name/);
+  assert.equal(f.uploads.length, uploads);
+
+  await writeJson(path.join(f.root, "app/package.json"), {
+    name: "@test-org.executor.community/test-app",
+    type: "module",
+    dependencies: { apps: "0.0.1-beta.81" },
+  });
+  await f.installer.prepare();
+  await f.installer.build();
+  await assert.rejects(f.installer.deploy(), /bare name/);
+  assert.equal(f.uploads.length, uploads);
+});
+
+test("publication refuses a source checkout whose config authorizes someone", async (t) => {
+  const f = await fixture(t);
+  await f.installer.prepare();
+  await f.installer.build();
+  await f.installer.deploy();
+  await writeFile(
+    path.join(f.root, "app/config.ts"),
+    'export const grants = [{ id: "agent" }]; export const projects = {};\n'
+  );
+  const uploads = f.uploads.length;
+  await assert.rejects(f.installer.publication(), /authorize nobody/);
+  assert.equal(f.uploads.length, uploads);
 });
 
 test("runtime files follow every ui/index.html script and type-only import, and refuse tags they cannot follow", async (t) => {
