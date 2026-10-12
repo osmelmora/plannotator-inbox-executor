@@ -9,6 +9,11 @@ import { loadIdentity, readJson, writeJson } from "./state.mjs";
 const sensitiveFilePattern = /(?:credentials|secrets)(?:\.|$)/i;
 const appIdPattern = /^app_[a-zA-Z0-9-]+$/;
 const frameworkVersionPattern = /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/;
+// Executor reads these by path, not through an import, and the license files
+// travel with every copy. Other staged files are build inputs, such as the
+// vendored UI source compiled into ui/public.
+const hostFilePattern =
+  /^(?:LICENSE|NOTICE|package\.json|ui\/index\.html|ui\/public\/.+|migrations\/.+|skills\/.+|(?:domain|vendor)\/(?:LICENSE-[A-Z]+|UPSTREAM\.json|README\.md))$/;
 
 const excluded = new Set([
   "node_modules",
@@ -61,6 +66,12 @@ export async function collectSource(directory, prefix = "") {
 export function sourceDigest(files) {
   return createHash("sha256").update(JSON.stringify(files)).digest("hex");
 }
+export function uploadSource(files, runtime) {
+  const imported = new Set(runtime);
+  return files.filter(
+    (file) => imported.has(file.path) || hostFilePattern.test(file.path)
+  );
+}
 /** Profile names are capped at 128 UTF-16 code units by the pinned host.
  * Account labels have no smaller declared bound; share the same display label.
  * Keep the complete stable principal suffix, shortening only the app's name. */
@@ -101,8 +112,38 @@ export function createInstaller({
   const stage = path.join(directory, "staging");
   const appDirectory = path.join(stage, "app");
   const receipt = (name) => path.join(directory, `${name}.json`);
+  const sourceFile = path.join(directory, "source.json");
   async function identity(options) {
     return await loadIdentity(directory, config, options);
+  }
+  async function readSource(appId) {
+    const source = await cli(["source", "--app", appId]);
+    if (
+      typeof source.revision?.commit !== "string" ||
+      !source.revision.commit
+    ) {
+      throw new Error("Host returned no source commit.");
+    }
+    return source;
+  }
+  async function commitSource(appId, files, expected, message) {
+    await writeJson(sourceFile, files);
+    const saved = await cli([
+      "commit",
+      "--app",
+      appId,
+      "--files",
+      sourceFile,
+      "--expected",
+      expected,
+      "--message",
+      message,
+    ]);
+    const commit = saved.revision?.commit;
+    if (typeof commit !== "string" || !commit) {
+      throw new Error("Host returned no saved commit.");
+    }
+    return commit;
   }
   async function framework() {
     const release = await cli(["framework"]);
@@ -134,7 +175,10 @@ export function createInstaller({
       recursive: true,
       filter: (source) => !excluded.has(path.basename(source)),
     });
-    for (const file of ["build-css.mjs", "build-ui.mjs"]) {
+    for (const file of ["LICENSE", "NOTICE"]) {
+      await cp(path.join(root, file), path.join(appDirectory, file));
+    }
+    for (const file of ["build-css.mjs", "build-ui.mjs", "runtime-files.mjs"]) {
       await cp(
         path.join(root, "scripts", file),
         path.join(stage, "scripts", file)
@@ -231,11 +275,22 @@ export function createInstaller({
     await runner(process.execPath, [path.join(stage, "scripts/build-ui.mjs")], {
       cwd: stage,
     });
+    const runtime = JSON.parse(
+      await runner(
+        process.execPath,
+        [path.join(stage, "scripts/runtime-files.mjs")],
+        { cwd: stage }
+      )
+    );
+    if (!runtime.includes("index.ts")) {
+      throw new Error("The runtime import graph does not include index.ts.");
+    }
     const files = await collectSource(appDirectory);
     const result = {
       framework: prepared.framework,
       configDigest: prepared.configDigest,
       sourceDigest: sourceDigest(files),
+      runtime,
       files: files.length,
       builtAt: new Date().toISOString(),
     };
@@ -292,13 +347,11 @@ export function createInstaller({
     // No create call has an idempotency key. Persist creation intent first. If
     // its response was lost, a retry requires explicit adoption of the observed
     // app, so the installer never creates a second app silently.
-    const sourceFile = path.join(directory, "source.json");
-    // Executor accepts app source without package-manager lockfiles. Keep the
-    // local lock in the build digest above, but omit it from remote uploads.
-    await writeJson(
-      sourceFile,
-      files.filter((file) => file.path !== "pnpm-lock.yaml")
-    );
+    if (!Array.isArray(built.runtime)) {
+      throw new Error("Build again to record the runtime import graph.");
+    }
+    const upload = uploadSource(files, built.runtime);
+    await writeJson(sourceFile, upload);
     if (!app) {
       const pending = await readJson(receipt("creation-pending"), true);
       if (pending) {
@@ -329,26 +382,13 @@ export function createInstaller({
     }
     await writeJson(receipt("app"), app);
     await rm(receipt("creation-pending"), { force: true });
-    const source = await cli(["source", "--app", app.id]);
-    const head = source.revision?.commit;
-    if (typeof head !== "string" || !head) {
-      throw new Error("Host returned no source commit.");
-    }
-    const saved = await cli([
-      "commit",
-      "--app",
+    const source = await readSource(app.id);
+    const commit = await commitSource(
       app.id,
-      "--files",
-      sourceFile,
-      "--expected",
-      head,
-      "--message",
-      "Deploy Plannotator Inbox Executor",
-    ]);
-    const commit = saved.revision?.commit;
-    if (typeof commit !== "string" || !commit) {
-      throw new Error("Host returned no saved commit.");
-    }
+      upload,
+      source.revision.commit,
+      "Deploy Plannotator Inbox Executor"
+    );
     const result = await cli(["deploy", "--app", app.id, "--commit", commit]);
     if (!result.deployment?.id) {
       throw new Error("Host returned no deployment ID.");

@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import fs from "node:fs";
 import {
   mkdir,
   mkdtemp,
@@ -12,6 +14,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { cloudApi } from "../scripts/lib/cloud-api.mjs";
 import {
   configDigest,
@@ -22,6 +25,7 @@ import {
   collectSource,
   createInstaller,
   principalDisplayLabel,
+  uploadSource,
 } from "../scripts/lib/installer.mjs";
 import { officialCli } from "../scripts/lib/process.mjs";
 import {
@@ -67,8 +71,11 @@ async function fixture(t, configOverrides = {}, appId = "app_fixture") {
     path.join(root, "app/config.ts"),
     "export const grants = []; export const projects = {};\n"
   );
-  for (const file of ["build-css.mjs", "build-ui.mjs"]) {
+  for (const file of ["build-css.mjs", "build-ui.mjs", "runtime-files.mjs"]) {
     await writeFile(path.join(root, "scripts", file), "// fixture");
+  }
+  for (const file of ["LICENSE", "NOTICE"]) {
+    await writeFile(path.join(root, file), `${file} fixture\n`);
   }
   await writeJson(path.join(root, "docs/ui-static-build-receipt.json"), {
     assets: [],
@@ -199,6 +206,9 @@ async function fixture(t, configOverrides = {}, appId = "app_fixture") {
     }
     if (command === "pnpm" && args[0] === "add") {
       lockedFramework = args.at(-1).slice("apps@".length);
+    }
+    if (args[0]?.endsWith("runtime-files.mjs")) {
+      return JSON.stringify(["config.ts", "index.ts"]);
     }
     return "";
   };
@@ -483,8 +493,21 @@ test("pnpm lock inspection rejects a mismatched framework and explicit updates p
   assert(!stagedFiles.some((file) => file.path === "package-lock.json"));
 });
 
-test("deployment omits only the pnpm lock from uploads while retaining its build integrity check", async (t) => {
+test("deployment uploads the runtime import graph and host-read files while build inputs stay in the integrity check", async (t) => {
   const f = await fixture(t);
+  for (const [file, content] of [
+    ["ui/index.html", '<script src="./host.ts" type="module"></script>\n'],
+    ["ui/public/inbox-bundle.js", "export {};\n"],
+    ["ui/styles.ts", "export default '';\n"],
+    ["migrations/0001_native.sql", "SELECT 1;\n"],
+    ["vendor/LICENSE-MIT", "MIT\n"],
+    ["vendor/ui/button.tsx", "export {};\n"],
+  ]) {
+    await mkdir(path.dirname(path.join(f.root, "app", file)), {
+      recursive: true,
+    });
+    await writeFile(path.join(f.root, "app", file), content);
+  }
   await f.installer.prepare();
   await f.installer.build();
   const appDirectory = path.join(f.directory, "staging/app");
@@ -502,14 +525,132 @@ test("deployment omits only the pnpm lock from uploads while retaining its build
     f.uploads.map((upload) => upload.operation),
     ["create", "commit"]
   );
-  const expectedSource = stagedFiles.filter(
-    (file) => file.path !== "pnpm-lock.yaml"
-  );
+  const expectedPaths = [
+    "config.ts",
+    "index.ts",
+    "LICENSE",
+    "migrations/0001_native.sql",
+    "NOTICE",
+    "package.json",
+    "ui/index.html",
+    "ui/public/inbox-bundle.js",
+    "vendor/LICENSE-MIT",
+  ];
   for (const upload of f.uploads) {
-    assert.deepEqual(upload.files, expectedSource);
-    assert(upload.files.some((file) => file.path === "pnpm-workspace.yaml"));
+    assert.deepEqual(
+      upload.files,
+      stagedFiles.filter((file) => expectedPaths.includes(file.path))
+    );
+    assert.deepEqual(
+      upload.files.map((file) => file.path),
+      expectedPaths
+    );
   }
   assert.equal(await readFile(lockFile, "utf8"), originalLock);
+
+  const buildReceipt = path.join(f.directory, "build.json");
+  const { runtime, ...withoutRuntime } = JSON.parse(
+    await readFile(buildReceipt, "utf8")
+  );
+  assert.deepEqual(runtime, ["config.ts", "index.ts"]);
+  await writeJson(buildReceipt, withoutRuntime);
+  await assert.rejects(f.installer.deploy(), /Build again/);
+});
+
+test("runtime files follow every ui/index.html script and type-only import, and refuse tags they cannot follow", async (t) => {
+  const repository = fileURLToPath(new URL("..", import.meta.url));
+  const root = await mkdtemp(path.join(os.tmpdir(), "inbox-runtime-files-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(path.join(root, "scripts"));
+  await mkdir(path.join(root, "app/ui"), { recursive: true });
+  await writeFile(
+    path.join(root, "scripts/runtime-files.mjs"),
+    await readFile(path.join(repository, "scripts/runtime-files.mjs"))
+  );
+  await symlink(
+    path.join(repository, "app/node_modules"),
+    path.join(root, "app/node_modules")
+  );
+  for (const [file, content] of [
+    [
+      "index.ts",
+      'import type { Shape } from "./shape.js";\nexport const shape: Shape | null = null;\n',
+    ],
+    ["shape.ts", "export interface Shape { id: string }\n"],
+    ["ui/host.ts", 'import "./transport.js";\n'],
+    ["ui/transport.ts", "export {};\n"],
+  ]) {
+    await writeFile(path.join(root, "app", file), content);
+  }
+  const runtimeFiles = (html) => {
+    fs.writeFileSync(path.join(root, "app/ui/index.html"), html);
+    return JSON.parse(
+      execFileSync(
+        process.execPath,
+        [path.join(root, "scripts/runtime-files.mjs")],
+        { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
+      )
+    );
+  };
+  assert.deepEqual(
+    runtimeFiles(
+      "<!-- <script src=\"./old.ts\"></script> -->\n<SCRIPT type='module' src = 'host.ts'></SCRIPT>\n"
+    ),
+    ["index.ts", "shape.ts", "ui/host.ts", "ui/transport.ts"]
+  );
+  for (const html of [
+    '<link rel="stylesheet" href="./styles.css">',
+    '<script type="module">import "./transport.js";</script>',
+    '<script type="module" src="/host.ts"></script>',
+  ]) {
+    assert.throws(() => runtimeFiles(html), /cannot follow/, html);
+  }
+});
+
+test("the real app uploads its imported files and prebuilt UI within public listing limits", async () => {
+  const repository = fileURLToPath(new URL("..", import.meta.url));
+  const runtime = JSON.parse(
+    execFileSync(process.execPath, ["scripts/runtime-files.mjs"], {
+      cwd: repository,
+      encoding: "utf8",
+    })
+  );
+  const upload = uploadSource(
+    await collectSource(path.join(repository, "app")),
+    runtime
+  );
+  const paths = upload.map((file) => file.path);
+  for (const required of [
+    "config.ts",
+    "index.ts",
+    "migrations/0001_native.sql",
+    "skills/plannotator-inbox-executor/SKILL.md",
+    "ui/executor-transport.ts",
+    "ui/host.ts",
+    "ui/index.html",
+    "ui/public/inbox-bundle.js",
+    "upstream-tools.json",
+    "vendor/core/guide.ts",
+    "vendor/core/inbox-types.ts",
+  ]) {
+    assert(paths.includes(required), required);
+  }
+  for (const buildInput of [
+    "pnpm-lock.yaml",
+    "ui/main.tsx",
+    "ui/styles.ts",
+    "vendor/inbox/index.ts",
+  ]) {
+    assert(fs.existsSync(path.join(repository, "app", buildInput)), buildInput);
+    assert(!paths.includes(buildInput), buildInput);
+  }
+  assert(!paths.some((file) => file.startsWith("vendor/ui/")));
+  // Executor lists public apps up to 512 files and 4 MB of source outside ui/public.
+  assert(upload.length <= 512, `${upload.length} files`);
+  const sourceBytes = upload
+    .filter((file) => !file.path.startsWith("ui/public/"))
+    .reduce((total, file) => total + Buffer.byteLength(file.content), 0);
+  assert(sourceBytes <= 4_000_000, `${sourceBytes} bytes`);
 });
 
 test("locked build is required; altered source and implicit existing-app adoption are refused", async (t) => {
