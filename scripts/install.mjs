@@ -9,7 +9,7 @@ import { officialCli } from "./lib/process.mjs";
 import { installationDirectory, withLock } from "./lib/state.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const usage = `Usage: node scripts/install.mjs <init|prepare|build|deploy|profiles|install|status> --config inbox.config.json
+const usage = `Usage: node scripts/install.mjs <init|prepare|build|deploy|profiles|install|publication|status> --config inbox.config.json
 
 init      Copy the example config without overwriting an existing file.
 prepare   Discover the host framework, generate/reuse private identity, stage source.
@@ -17,6 +17,7 @@ build     Install locked dependencies, typecheck server/UI, build hosted assets.
 deploy    Create/commit/deploy through the signed-in official CLI.
 profiles  Provision each agent/reviewer credential and profile.
 install   Run prepare, build, deploy, profiles; safe to resume with the same config.
+publication  Save a publishable commit without grants, then restore the installation source.
 status    Print safe deployment and profile receipts (never credentials).
 
 Options:
@@ -45,6 +46,7 @@ async function main() {
       "deploy",
       "profiles",
       "install",
+      "publication",
       "status",
     ].includes(command)
   ) {

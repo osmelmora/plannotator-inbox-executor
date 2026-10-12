@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { cloudApi } from "./cloud-api.mjs";
 import { configDigest, credentialHash } from "./config.mjs";
 import { run } from "./process.mjs";
@@ -9,6 +10,11 @@ import { loadIdentity, readJson, writeJson } from "./state.mjs";
 const sensitiveFilePattern = /(?:credentials|secrets)(?:\.|$)/i;
 const appIdPattern = /^app_[a-zA-Z0-9-]+$/;
 const frameworkVersionPattern = /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/;
+// Executor reads these by path, not through an import, and the license files
+// travel with every copy. Other staged files are build inputs, such as the
+// vendored UI source compiled into ui/public.
+const hostFilePattern =
+  /^(?:LICENSE|NOTICE|package\.json|ui\/index\.html|ui\/public\/.+|migrations\/.+|skills\/.+|(?:domain|vendor)\/(?:LICENSE-[A-Z]+|UPSTREAM\.json|README\.md))$/;
 
 const excluded = new Set([
   "node_modules",
@@ -61,6 +67,27 @@ export async function collectSource(directory, prefix = "") {
 export function sourceDigest(files) {
   return createHash("sha256").update(JSON.stringify(files)).digest("hex");
 }
+function requireBareName(files) {
+  const manifest = files.find((file) => file.path === "package.json");
+  if (JSON.parse(manifest.content).name.startsWith("@")) {
+    throw new Error(
+      "The installation package.json must keep a bare name, so Executor refuses to publish commits that carry grants."
+    );
+  }
+}
+function sameSource(left, right) {
+  const contents = new Map(right.map((file) => [file.path, file.content]));
+  return (
+    left.length === right.length &&
+    left.every((file) => contents.get(file.path) === file.content)
+  );
+}
+export function uploadSource(files, runtime) {
+  const imported = new Set(runtime);
+  return files.filter(
+    (file) => imported.has(file.path) || hostFilePattern.test(file.path)
+  );
+}
 /** Profile names are capped at 128 UTF-16 code units by the pinned host.
  * Account labels have no smaller declared bound; share the same display label.
  * Keep the complete stable principal suffix, shortening only the app's name. */
@@ -101,8 +128,38 @@ export function createInstaller({
   const stage = path.join(directory, "staging");
   const appDirectory = path.join(stage, "app");
   const receipt = (name) => path.join(directory, `${name}.json`);
+  const sourceFile = path.join(directory, "source.json");
   async function identity(options) {
     return await loadIdentity(directory, config, options);
+  }
+  async function readSource(appId) {
+    const source = await cli(["source", "--app", appId]);
+    if (
+      typeof source.revision?.commit !== "string" ||
+      !source.revision.commit
+    ) {
+      throw new Error("Host returned no source commit.");
+    }
+    return source;
+  }
+  async function commitSource(appId, files, expected, message) {
+    await writeJson(sourceFile, files);
+    const saved = await cli([
+      "commit",
+      "--app",
+      appId,
+      "--files",
+      sourceFile,
+      "--expected",
+      expected,
+      "--message",
+      message,
+    ]);
+    const commit = saved.revision?.commit;
+    if (typeof commit !== "string" || !commit) {
+      throw new Error("Host returned no saved commit.");
+    }
+    return commit;
   }
   async function framework() {
     const release = await cli(["framework"]);
@@ -134,7 +191,10 @@ export function createInstaller({
       recursive: true,
       filter: (source) => !excluded.has(path.basename(source)),
     });
-    for (const file of ["build-css.mjs", "build-ui.mjs"]) {
+    for (const file of ["LICENSE", "NOTICE"]) {
+      await cp(path.join(root, file), path.join(appDirectory, file));
+    }
+    for (const file of ["build-css.mjs", "build-ui.mjs", "runtime-files.mjs"]) {
       await cp(
         path.join(root, "scripts", file),
         path.join(stage, "scripts", file)
@@ -231,11 +291,22 @@ export function createInstaller({
     await runner(process.execPath, [path.join(stage, "scripts/build-ui.mjs")], {
       cwd: stage,
     });
+    const runtime = JSON.parse(
+      await runner(
+        process.execPath,
+        [path.join(stage, "scripts/runtime-files.mjs")],
+        { cwd: stage }
+      )
+    );
+    if (!runtime.includes("index.ts")) {
+      throw new Error("The runtime import graph does not include index.ts.");
+    }
     const files = await collectSource(appDirectory);
     const result = {
       framework: prepared.framework,
       configDigest: prepared.configDigest,
       sourceDigest: sourceDigest(files),
+      runtime,
       files: files.length,
       builtAt: new Date().toISOString(),
     };
@@ -292,13 +363,12 @@ export function createInstaller({
     // No create call has an idempotency key. Persist creation intent first. If
     // its response was lost, a retry requires explicit adoption of the observed
     // app, so the installer never creates a second app silently.
-    const sourceFile = path.join(directory, "source.json");
-    // Executor accepts app source without package-manager lockfiles. Keep the
-    // local lock in the build digest above, but omit it from remote uploads.
-    await writeJson(
-      sourceFile,
-      files.filter((file) => file.path !== "pnpm-lock.yaml")
-    );
+    if (!Array.isArray(built.runtime)) {
+      throw new Error("Build again to record the runtime import graph.");
+    }
+    const upload = uploadSource(files, built.runtime);
+    requireBareName(upload);
+    await writeJson(sourceFile, upload);
     if (!app) {
       const pending = await readJson(receipt("creation-pending"), true);
       if (pending) {
@@ -329,26 +399,13 @@ export function createInstaller({
     }
     await writeJson(receipt("app"), app);
     await rm(receipt("creation-pending"), { force: true });
-    const source = await cli(["source", "--app", app.id]);
-    const head = source.revision?.commit;
-    if (typeof head !== "string" || !head) {
-      throw new Error("Host returned no source commit.");
-    }
-    const saved = await cli([
-      "commit",
-      "--app",
+    const source = await readSource(app.id);
+    const commit = await commitSource(
       app.id,
-      "--files",
-      sourceFile,
-      "--expected",
-      head,
-      "--message",
-      "Deploy Plannotator Inbox Executor",
-    ]);
-    const commit = saved.revision?.commit;
-    if (typeof commit !== "string" || !commit) {
-      throw new Error("Host returned no saved commit.");
-    }
+      upload,
+      source.revision.commit,
+      "Deploy Plannotator Inbox Executor"
+    );
     const result = await cli(["deploy", "--app", app.id, "--commit", commit]);
     if (!result.deployment?.id) {
       throw new Error("Host returned no deployment ID.");
@@ -519,7 +576,74 @@ export function createInstaller({
       profiles: mapping ? publicProfiles(mapping) : null,
     };
   }
-  return { prepare, build, deploy, profiles, status };
+  async function planPublication(original, organizationSlug) {
+    const configFile = path.join(root, "app/config.ts");
+    const { grants, projects } = await import(pathToFileURL(configFile).href);
+    if (grants.length || Object.keys(projects).length) {
+      throw new Error("The public app/config.ts must authorize nobody.");
+    }
+    const publicConfig = await readFile(configFile, "utf8");
+    const installed = original.find((file) => file.path === "config.ts");
+    if (!installed || installed.content === publicConfig) {
+      throw new Error(
+        "The working source has no installation grants in config.ts; deploy before publication."
+      );
+    }
+    requireBareName(original);
+    const name = `@${organizationSlug}.executor.community/${config.app.slug}`;
+    const published = original.map((file) => {
+      if (file.path === "config.ts") {
+        return { ...file, content: publicConfig };
+      }
+      if (file.path === "package.json") {
+        const manifest = { ...JSON.parse(file.content), name };
+        return { ...file, content: `${JSON.stringify(manifest, null, 2)}\n` };
+      }
+      return file;
+    });
+    return { name, original, published };
+  }
+  // Executor lists a public app from one source commit. That commit gets the
+  // scoped name and the public config; installation commits keep the bare name,
+  // which Executor refuses to publish, so their grants never reach a listing.
+  async function publication() {
+    await identity();
+    const app = await readJson(receipt("app"));
+    const api = await apiFactory(config, app.id, cli);
+    checkApp(app, config, api.context.organization);
+    const pendingFile = receipt("publication-pending");
+    const source = await readSource(app.id);
+    // The pending plan keeps both snapshots until the restore succeeds, so a
+    // rerun after a failure between the two commits replays the same plan.
+    const plan =
+      (await readJson(pendingFile, true)) ??
+      (await planPublication(source.files, api.context.slug));
+    await writeJson(pendingFile, plan);
+    let { commit } = source.revision;
+    if (sameSource(source.files, plan.original)) {
+      commit = await commitSource(
+        app.id,
+        plan.published,
+        commit,
+        "Public source without installation grants"
+      );
+    } else if (!sameSource(source.files, plan.published)) {
+      throw new Error(
+        "The working source changed during publication. Inspect it, then remove publication-pending.json to start again."
+      );
+    }
+    const restored = await commitSource(
+      app.id,
+      plan.original,
+      commit,
+      "Restore installation grants"
+    );
+    const result = { name: plan.name, commit, restored };
+    await writeJson(receipt("publication"), result);
+    await rm(pendingFile, { force: true });
+    return result;
+  }
+  return { prepare, build, deploy, profiles, publication, status };
 }
 function publicProfiles(mapping) {
   return {

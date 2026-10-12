@@ -99,7 +99,7 @@ mise exec -- node scripts/install.mjs status --config inbox.config.json
 
 The installer discovers the target host's exact `apps` framework version, creates fresh per-principal credentials, stages source with only credential hashes/grants, installs the staged app with its frozen pnpm lockfile, builds assets, type-checks server and UI, deploys the app, and provisions its accounts/profiles. [Executor requires an exact host-compatible framework pin](https://executor.sh/docs/author-an-app).
 
-The pnpm lockfile remains in local staging and the build integrity check; it is excluded from the app source uploaded to Executor.
+The source uploaded to Executor holds only the files the host loads: every file `index.ts` and `ui/index.html` import, type-only imports included, the prebuilt assets in `ui/public`, `package.json`, migrations, skills, and license and provenance files, including the repository's `LICENSE` and `NOTICE`. The vendored UI source, generated styles, and pnpm lockfile remain in local staging and the build integrity check. Keeping these build inputs out of the upload holds the app within Executor's public listing limits of 512 files and 4 MB of source.
 
 You can run the same stages individually when investigating a failure:
 
@@ -139,6 +139,16 @@ To update source, preserve those files, fetch/review the changes, and rerun `ins
 Preserve the [account provider declaration](docs/compatibility.md#account-provider-identity), including its labels and credential schema. Executor uses that declaration to bind existing accounts; cosmetic app branding changes must not rename the provider.
 
 To make an independent installation, use a separate source checkout and a new config/state directory. Do not copy `.runtime/` or another installation's credentials. Losing operator state is not a safe reason to regenerate identities over an existing app.
+
+## Publish a public listing (optional)
+
+Executor lists a public app from one commit of its source. That commit needs a package name in your organization's scope and must not carry your installation's grants. After a successful deploy, run:
+
+```sh
+mise exec -- node scripts/install.mjs publication --config inbox.config.json
+```
+
+The command saves a commit with the public `app/config.ts`, which authorizes nobody, and the name `@<organization-slug>.executor.community/<app-slug>`. It then saves your installation's source again, so the running app and later deploys keep their grants. Installation commits keep the bare package name, and Executor refuses to publish that name. Deploy and `publication` stop if `app/package.json` has a scoped name. Publish the printed `commit` with Executor's `appManagement.publish`. If the command stops between its two commits, rerun it. It replays the plan saved in `publication-pending.json` and restores your installation source. A copy of the listing authorizes nobody until its owner adds their own grants. Rerun `publication` after renaming your organization, because the scope follows its current slug.
 
 ## Tested scope
 

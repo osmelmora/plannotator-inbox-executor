@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added the installer's `publication` command. It saves a commit named in the organization's `executor.community` scope with the public `config.ts`, then restores the installation source. A rerun after a failure between the two commits finishes the restore. Installation commits keep the bare name, so Executor refuses to publish a commit that carries grants. The app manifest now has a listing description.
+- Uploaded only the files Executor loads. The build records every file `index.ts` and `ui/index.html` import, type-only imports included, and deployment adds `ui/public`, `package.json`, migrations, skills, and license and provenance files, including the root `LICENSE` and `NOTICE`. The upload falls from 592 files and 14.2 MB to 165 files, with 622 KB outside `ui/public`, within Executor's public listing limits.
 - Updated checkout to `v7.0.1` and mise-action to `v5.1.1`, both using Node.js 24 for their GitHub Actions runtime.
 - Allowed the exact host-required `apps@0.0.1-beta.81` SDK during pnpm's release-age waiting period so fresh frozen installs work; other dependency age and integrity checks remain enabled.
 - Preserved the original Executor account provider declaration so source upgrades retain existing account/profile bindings; added a regression test through the actual pinned SDK host serializer.
